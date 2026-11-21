@@ -1,19 +1,166 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Block Dodger</title>
+<title>TROPICAL COAST</title>
 <style>
-  html, body { margin: 0; height: 100%; overflow: hidden; background: #11141b; }
-  #game { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
-  /* Read aloud, never shown: the status line screen readers announce. */
-  #status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  html,body{margin:0;padding:0;overflow:hidden;background:#1a0f2e;font-family:Arial,sans-serif}
+  #c{display:block}
+  .hud{position:absolute;color:#fff;text-shadow:0 2px 4px rgba(0,0,0,.7);pointer-events:none}
+  #map{position:absolute;top:12px;left:12px;width:170px;height:170px;border-radius:50%;border:5px solid #fff;background:#2a8a4a;overflow:hidden}
+  #map canvas{width:170px;height:170px}
+  #money{top:10px;right:16px;font-size:46px;font-weight:900;color:#37e07a}
+  #fist{top:58px;right:196px;width:46px;height:46px;background:rgba(20,10,40,.72);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:26px;text-shadow:none}
+  #health{left:12px;bottom:196px;font-size:20px}
+  #health .hrow{display:flex;align-items:center;gap:6px;margin-bottom:4px;justify-content:flex-start}
+  #health .bar{width:150px;height:14px;background:#333;border-radius:7px;overflow:hidden}
+  #healthBar{display:block;height:14px;width:100%;background:#ff5a9a;border-radius:7px}
+  #armourBar{display:block;height:14px;width:100%;background:#2a9aff;border-radius:7px}
+  #health b{font-size:16px;min-width:30px;text-align:right}
+  #stars{top:96px;right:16px;font-size:34px;color:#ffd23f;letter-spacing:6px}
+  #stars .dim{color:#8a9ab8}
+  #gun{top:136px;right:16px;background:rgba(20,10,40,.72);border-radius:10px;padding:8px 12px;font-size:20px;text-align:right}
+  #gaugeBox{bottom:0;left:50%;transform:translateX(-50%);text-align:center}
+  #gaugeBox canvas{width:180px;height:auto}
+  #gaugeBox b{font-size:44px}
+  #gaugeBox span{font-size:16px}
+  .ctl{position:absolute;border-radius:50%;background:rgba(20,20,40,.45);border:2px solid rgba(255,255,255,.65);color:#fff;
+    display:flex;align-items:center;justify-content:center;font-size:30px;text-shadow:none}
+  #cl1{left:26px;bottom:26px;width:86px;height:86px}
+  #cl2{left:130px;bottom:26px;width:86px;height:86px}
+  #cr1{right:26px;bottom:150px;width:64px;height:64px;font-size:24px}
+  #cr2{right:26px;bottom:76px;width:64px;height:64px;font-size:24px}
+  #cr3{right:110px;bottom:26px;width:86px;height:86px;font-size:22px}
+  #enter, #talk {left:50%;bottom:240px;transform:translateX(-50%);background:rgba(20,10,40,.8);border:2px solid #fff;border-radius:10px;padding:10px 18px;font-size:22px;font-weight:700;display:none}
+  #enter b, #talk b{background:#fff;color:#111;border-radius:6px;padding:2px 10px;margin-right:8px}
+  #objective{display:none !important}
+  #missionPanel{top:216px;left:12px;background:rgba(20,10,40,.72);border-radius:10px;padding:10px 14px;font-size:18px;font-weight:700;max-width:300px;line-height:1.35}
+  #missionPanel b{color:#ffd23f;display:block;font-size:17px;letter-spacing:1px}
+  #missionPanel .mtitle{display:block;font-size:26px;font-weight:900;color:#fff;line-height:1.15}
+  #missionPanel span{display:block}
+  #missionPanel .stagebar{margin:6px 0 2px}
+  #missionPanel .seg{display:inline-block;width:20px;height:10px;background:#6a6a7a;border:1px solid #999;border-radius:2px;margin-right:3px}
+  #missionPanel .seg.on{background:#ffd23f}
+  #missionPanel .mtimer{color:#ffd23f;font-size:15px}
+  #district{top:188px;left:12px;font-size:16px;font-weight:900;letter-spacing:2px;color:#ffd23f}
+  #carInfo{top:182px;right:16px;background:rgba(20,10,40,.72);border-radius:10px;padding:8px 12px;font-size:18px;font-weight:700;text-align:right}
+  #radio{top:222px;right:16px;background:rgba(20,10,40,.72);border-radius:10px;padding:8px 12px;font-size:16px;font-weight:700;text-align:right}
+  #dispatch{top:262px;right:16px;background:rgba(20,10,40,.72);border:2px solid rgba(255,60,60,.6);border-radius:10px;padding:8px 12px;font-size:16px;font-weight:700;text-align:left;display:none;min-width:280px}
+  #dispatch b{color:#ff5a5a;display:block;font-size:14px;letter-spacing:1px}
+  #dispatch .drow{display:flex;justify-content:space-between;align-items:center;gap:8px}
+  #dispatch .drow i{font-style:normal}
+  #dispatch .drow em{font-style:normal;color:#ffd23f}
+  #dispatch .chip{background:#ff5a5a;color:#fff;border-radius:4px;padding:1px 7px;font-size:12px}
+  #dispatch .chip.ram{background:#e5484d}
+  #dispatch .chip.pur{background:#ff8a2a}
+  #dispatch .chip.spot{background:#2a6aff}
+  #dispatch .chip.flank{background:#2ac8c8}
+  #dispatch .chip.inter{background:#9a6aff}
+  #dispatch .chip.block{background:#b02a2a}
+  #dispatch .more{display:block;text-align:center;color:#ffd23f;font-size:13px;padding-top:3px}
+  #weapons{bottom:232px;right:16px;display:flex;gap:6px}
+  #weapons div{width:52px;height:66px;background:rgba(20,10,40,.72);border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff}
+  #weapons div.on{border:2px solid #ffd23f;background:#ff8a2a}
+  #weapons svg{width:34px;height:34px;fill:#fff}
+  #weapons .wicon{font-size:18px;line-height:1}
+  #weapons b{font-size:13px}
+  #weapons em{font-style:normal;font-size:11px;color:#ffd23f}
+  #talkHead{display:flex;align-items:flex-end}
+  #talkPortrait{width:44px;height:44px;border-radius:50%;background:#ff5a9a;border:3px solid #fff;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:900;color:#fff;margin-right:8px;flex:none;text-shadow:none;background-size:cover;background-position:center}
+  #dlgPortrait,#menuDlgPortrait{width:44px;height:44px;border-radius:50%;border:3px solid #fff;background:url(textures/portrait-gito.jpg) center/cover;display:inline-block;vertical-align:middle;margin-right:8px}
+  #talkRole{display:inline-block;background:rgba(20,20,30,.85);color:#ffd23f;font-weight:700;font-size:16px;padding:4px 12px;border-radius:8px 8px 0 0;margin-left:4px}
+  #talkDlg { position: fixed; left: 5%; bottom: 5%; width: 60%; z-index: 7; display: none; }
+  #talkName { display: inline-block; background: #ff2a8a; color: #fff; font-weight: 900; font-size: 22px; padding: 4px 16px; border-radius: 8px 8px 0 0; }
+  #talkBox { position: relative; background: rgba(20,20,30,.85); border: 2px solid rgba(255,255,255,.6); border-radius: 0 12px 12px 12px; color: #fff; font-size: 22px; line-height: 1.5; padding: 18px 44px 18px 22px; cursor: pointer; }
+  .dlgArrow { position: absolute; right: 14px; bottom: 8px; color: #fff; font-size: 18px; animation: blink 1.4s infinite; }
+  #missionBanner { position: fixed; left: 50%; top: 28%; transform: translateX(-50%); z-index: 7; display: none; color: #ffd23f; font-size: 44px; font-weight: 900; text-align: center; text-shadow: 0 3px 0 #111, 0 6px 18px rgba(0,0,0,.7); pointer-events: none; }
+  body.mode-splash .hud, body.mode-splash .ctl, body.mode-menu .hud, body.mode-menu .ctl, body.mode-dialogue .hud, body.mode-dialogue .ctl { display: none !important; }
+  #splash { position: fixed; inset: 0; z-index: 8; display: none; text-align: center; padding-top: 16vh;
+    background: linear-gradient(to bottom, rgba(20,10,40,0.1), rgba(20,10,40,0.55)); }
+  #splashLogo { font-size: 88px; font-weight: 900; font-style: italic; color: #fff; line-height: .9;
+    text-shadow: -2px -2px 0 #111, 2px -2px 0 #111, -2px 2px 0 #111, 2px 2px 0 #111, 5px 5px 0 #ff2a8a, 8px 8px 16px rgba(0,0,0,.6); }
+  #splashLogo span { display: block; color: #ff5a9a; font-family: 'Comic Sans MS', cursive; font-style: normal; transform: rotate(-2deg); }
+  #splashLogo svg { display: block; margin: 0 auto -4px; width: 360px; max-width: 82vw; height: auto; filter: drop-shadow(0 4px 10px rgba(0,0,0,.55)); }
+  #startBtn { margin-top: 44px; font-size: 30px; font-weight: 900; color: #fff; background: rgba(15,15,25,.85);
+    border: 2px solid rgba(255,255,255,.3); border-radius: 10px; padding: 12px 36px;
+    letter-spacing: 6px; cursor: pointer; animation: blink 1.4s infinite; text-shadow: 0 2px 6px rgba(0,0,0,.7); }
+  @keyframes blink { 50% { opacity: 0.35; } }
+  #menu { position: fixed; left: 5%; top: 8%; z-index: 6; display: none; }
+  #logo { display: inline-block; background: rgba(15,15,25,.5); padding: 8px 12px 6px; border-radius: 12px; font-size: 40px; font-weight: 900; font-style: italic; color: #fff; text-shadow: -2px -2px 0 #111, 2px -2px 0 #111, -2px 2px 0 #111, 2px 2px 0 #111, 4px 4px 0 #ff2a8a, 6px 6px 12px rgba(0,0,0,.5); line-height: .9; margin-bottom: 18px; }
+  #logo span { display: block; color: #ff5a9a; font-family: 'Comic Sans MS', cursive; font-style: normal; transform: rotate(-2deg); }
+  #logo svg { display: block; margin: 0 0 -4px 6px; width: 150px; max-width: 40vw; height: auto; filter: drop-shadow(0 4px 10px rgba(0,0,0,.55)); }
+  .mbtn { display: block; width: 260px; margin: 10px 0; padding: 12px 20px; font-size: 22px; font-weight: 700; color: #fff; background: rgba(20,20,40,.75); border: none; border-radius: 10px; text-align: left; cursor: pointer; }
+  .mbtn.primary { background: #ff2a8a; }
+  #dialogue { position: fixed; left: 5%; bottom: 5%; width: 65%; z-index: 6; display: none; }
+  #dlgname { display: inline-block; background: #ff2a8a; color: #fff; font-weight: 900; font-size: 22px; padding: 4px 16px; border-radius: 8px 8px 0 0; }
+  #dlgbox { position: relative; background: rgba(20,20,30,.85); border: 2px solid rgba(255,255,255,.6); border-radius: 0 12px 12px 12px; color: #fff; font-size: 22px; line-height: 1.5; padding: 18px 44px 18px 22px; cursor: pointer; }
+  #skipBtn { position: fixed; top: 16px; right: 16px; z-index: 6; background: rgba(20,20,30,.75); color: #fff; border: 2px solid #fff; border-radius: 10px; padding: 8px 16px; font-size: 20px; font-weight: 700; display: none; cursor: pointer; }
+  #menuDlg { position: fixed; left: 5%; bottom: 5%; width: 60%; z-index: 6; display: none; }
+  #menuDlgName { display: inline-block; background: #ff2a8a; color: #fff; font-weight: 900; font-size: 22px; padding: 4px 16px; border-radius: 8px 8px 0 0; }
+  #menuDlgBox { position: relative; background: rgba(20,20,30,.85); border: 2px solid rgba(255,255,255,.6); border-radius: 0 12px 12px 12px; color: #fff; font-size: 20px; line-height: 1.5; padding: 18px 44px 18px 22px; cursor: pointer; }
+  #muteBtn { position: fixed; top: 58px; right: 252px; z-index: 9; background: rgba(20,20,30,.75); color: #fff; border: 2px solid rgba(255,255,255,.6); border-radius: 10px; padding: 8px 14px; font-size: 18px; font-weight: 700; cursor: pointer; display: none; }
+  body.mode-game #muteBtn, body.mode-drive #muteBtn { display: block; }
 </style>
 </head>
 <body>
-<canvas id="game" aria-label="Block Dodger: move the paddle left and right to dodge falling blocks and catch coins"></canvas>
-<p id="status" role="status" aria-live="polite"></p>
-<script type="module" src="./src/main.js"></script>
+<canvas id="c"></canvas>
+<div class="hud" id="map"><canvas id="minimap" width="170" height="170"></canvas></div>
+<div class="hud" id="money">$5,000</div>
+<div class="hud" id="fist">👊</div>
+<div class="hud" id="health"><div class="hrow"><span>❤️</span><div class="bar"><i id="healthBar"></i></div><b id="healthNum">100</b></div><div class="hrow"><span>🛡️</span><div class="bar"><i id="armourBar"></i></div><b id="armourNum">50</b></div></div>
+<div class="hud" id="stars">★<span class="dim">★★★</span></div>
+<div class="hud" id="gun">🔫<br>12 / 60</div>
+<div class="hud" id="gaugeBox"><canvas id="gauge" width="240" height="130"></canvas><br><b id="spdNum">0</b> <span>KM/H</span></div>
+<div class="hud" id="enter"><b>E</b>Enter Vehicle</div>
+<div class="hud" id="objective">★ MISSION: Talk to Luna</div>
+<div class="hud" id="district">PROMENADE</div>
+<div class="hud" id="missionPanel"><b>MISSION 1 · STAGE 1/2</b><span class="mtitle">Welcome Back</span><span>★ Talk to Luna</span></div>
+<div class="hud" id="carInfo">COAST GT · CONDITION 100%</div>
+<div class="hud" id="radio">♪ RADIO TROPICAL 98.6 — Island Pop</div>
+<div class="hud" id="dispatch"></div>
+<div class="hud" id="weapons"><div class="on"><svg viewBox="0 0 24 24"><g transform="translate(12 12) rotate(-45) scale(0.78) translate(-12 -12)"><path d="M2 5h20v3.2H12l-2 9.8H6.2L8 8.2H2V5z"/><rect x="13.5" y="8.6" width="1.8" height="3"/></g></svg><b>1</b>PISTOL<br><em>12/60</em></div><div><svg viewBox="0 0 24 24"><g transform="translate(12 12) rotate(-45) scale(0.78) translate(-12 -12)"><path d="M1 5h22v3.5H15l-1 10.5H10.5L11.5 8.5H9l-.8 5.5H5l.8-5.5H1V5z"/></g></svg><b>2</b>SMG<br><em>—</em></div><div><svg viewBox="0 0 24 24"><g transform="translate(12 12) rotate(-45) scale(0.78) translate(-12 -12)"><path d="M1 5.5h22v2.8H14.5l-.5 3.7h-3l.5-3.7H8.5L8 13.5H5L5.5 8.3H1V5.5z"/><rect x="15" y="9" width="5.5" height="2.6"/></g></svg><b>3</b>SHOTGUN<br><em>—</em></div><div><svg viewBox="0 0 24 24"><g transform="translate(12 12) rotate(-45) scale(0.78) translate(-12 -12)"><rect x="9" y="2.5" width="6" height="2.5"/><path d="M1 5.5h21v3H17l-1 5.5H12.5L13.5 8.5H8l-.8 6H3.8L4.6 8.5H1V5.5z"/></g></svg><b>4</b>RIFLE<br><em>—</em></div><div><svg viewBox="0 0 24 24"><g transform="translate(12 12) rotate(-45) scale(0.78) translate(-12 -12)"><rect x="8" y="2" width="8" height="3"/><path d="M1 6h22v2.5H14l-.8 4.5h-3l.8-4.5H6.5L6 13.5H2.8L3.3 8.5H1V6z"/></g></svg><b>5</b>SNIPER<br><em>—</em></div><div><span class="wicon">🏏</span><b>6</b>BAT<br><em>—</em></div><div><span class="wicon">👊</span><b>7</b>FIST<br><em>∞</em></div></div>
+<div class="hud" id="talk"><b>E</b><span id="talkLabel">Talk to Luna</span></div>
+<div id="talkDlg"><div id="talkHead"><span id="talkPortrait">L</span><span id="talkName">Luna</span><span id="talkRole">CHILDHOOD FRIEND</span></div><div id="talkBox">Gito! You're back!<span class="dlgArrow">▼</span></div></div>
+<div id="missionBanner"></div>
+<div class="ctl" id="cl1">◀</div><div class="ctl" id="cl2">▶</div>
+<div class="ctl" id="cr1">📷</div><div class="ctl" id="cr2">📣</div><div class="ctl" id="cr3">☰</div>
+<button id="muteBtn">🔊</button>
+<div id="splash">
+  <div id="splashLogo"><svg viewBox="0 0 360 88" aria-hidden="true"><rect x="8" y="42" width="34" height="46" fill="#111"/><rect x="46" y="30" width="26" height="58" fill="#111"/><rect x="76" y="50" width="30" height="38" fill="#111"/><rect x="110" y="22" width="28" height="66" fill="#ff2a8a"/><rect x="142" y="38" width="32" height="50" fill="#111"/><rect x="178" y="28" width="24" height="60" fill="#ff5a9a"/><rect x="206" y="46" width="30" height="42" fill="#111"/><rect x="240" y="34" width="26" height="54" fill="#111"/><path d="M316 88 Q322 56 316 36" stroke="#ffd23f" stroke-width="6" fill="none" stroke-linecap="round"/><path d="M316 36 Q294 20 274 26" stroke="#ffd23f" stroke-width="5" fill="none" stroke-linecap="round"/><path d="M316 36 Q300 12 286 8" stroke="#ffd23f" stroke-width="5" fill="none" stroke-linecap="round"/><path d="M316 36 Q316 10 318 2" stroke="#ffd23f" stroke-width="5" fill="none" stroke-linecap="round"/><path d="M316 36 Q332 14 346 10" stroke="#ffd23f" stroke-width="5" fill="none" stroke-linecap="round"/><path d="M316 36 Q338 24 354 22" stroke="#ffd23f" stroke-width="5" fill="none" stroke-linecap="round"/></svg>Tropical<span>Coast</span></div>
+  <button id="startBtn">PRESS START</button>
+</div>
+<div id="menu">
+  <div id="logo"><svg viewBox="0 0 360 88" aria-hidden="true"><rect x="8" y="42" width="34" height="46" fill="#111"/><rect x="46" y="30" width="26" height="58" fill="#111"/><rect x="76" y="50" width="30" height="38" fill="#111"/><rect x="110" y="22" width="28" height="66" fill="#ff2a8a"/><rect x="142" y="38" width="32" height="50" fill="#111"/><rect x="178" y="28" width="24" height="60" fill="#ff5a9a"/><rect x="206" y="46" width="30" height="42" fill="#111"/><rect x="240" y="34" width="26" height="54" fill="#111"/><path d="M316 88 Q322 56 316 36" stroke="#ffd23f" stroke-width="6" fill="none" stroke-linecap="round"/><path d="M316 36 Q294 20 274 26" stroke="#ffd23f" stroke-width="5" fill="none" stroke-linecap="round"/><path d="M316 36 Q300 12 286 8" stroke="#ffd23f" stroke-width="5" fill="none" stroke-linecap="round"/><path d="M316 36 Q316 10 318 2" stroke="#ffd23f" stroke-width="5" fill="none" stroke-linecap="round"/><path d="M316 36 Q332 14 346 10" stroke="#ffd23f" stroke-width="5" fill="none" stroke-linecap="round"/><path d="M316 36 Q338 24 354 22" stroke="#ffd23f" stroke-width="5" fill="none" stroke-linecap="round"/></svg>Tropical<span>Coast</span></div>
+  <button class="mbtn primary" id="newGameBtn">▶ New Game</button>
+  <button class="mbtn">💾 Continue</button>
+  <button class="mbtn">⚙ Settings</button>
+  <button class="mbtn">🏆 Credits</button>
+  <button class="mbtn">⬅ Exit</button>
+</div>
+<div id="dialogue">
+  <div><span id="dlgPortrait"></span><span id="dlgname">Gito</span></div>
+  <div id="dlgbox">Finally, I'm back in Tropical Coast and I'm going to have fun here.<span class="dlgArrow">▼</span></div>
+</div>
+<div id="menuDlg">
+  <div><span id="menuDlgPortrait"></span><span id="menuDlgName">Gito</span></div>
+  <div id="menuDlgBox">Finally, I'm back in Tropical Coast and I'm going to have fun here.<span class="dlgArrow">▼</span></div>
+</div>
+<button id="skipBtn">Skip ▶▶</button>
+<script src="vendor/three.min.js"></script>
+<script src="src/random.js"></script>
+<script src="src/config.js"></script>
+<script src="src/textures.js"></script>
+<script src="src/scene.js"></script>
+<script src="src/world.js"></script>
+<script src="src/character.js"></script>
+<script src="src/vehicles.js"></script>
+<script src="src/missions.js"></script>
+<script src="src/hud.js"></script>
+<script src="src/input.js"></script>
+<script src="src/sound.js"></script>
+<script src="src/render.js"></script>
+<script src="src/shots.js"></script>
+<script src="src/main.js"></script>
 </body>
 </html>

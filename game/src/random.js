@@ -1,12 +1,9 @@
-// A small seeded random number generator (mulberry32): the same seed gives the same game,
-// which is what makes the screenshot scenes repeatable.
-
-export function createRandom(seed) {
-  let a = seed | 0;
-  return function random() {
-    a = (a + 0x6d2b79f5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
+// Seeded RNG — one fixed seed drives every random placement in the city,
+// so the map is identical on every load. The call order during world
+// building must never change: adding, removing or reordering a call
+// reshuffles every building, pedestrian and beach ball placed after it.
+// New features must use fixed coordinates or their own local generator,
+// never this shared sequence.
+var seed = 20261118;
+function rnd() { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; }
+function resetSeed() { seed = 20261118; }
