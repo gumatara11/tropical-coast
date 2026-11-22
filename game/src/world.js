@@ -117,7 +117,7 @@ var shopDefs = [
 ];
 var shopCols = [0xe8d8b8, 0xd8c8a8, 0xe8c8a8, 0xc8d8e8, 0xe8d8c8, 0xd8e8c8, 0xe8e8d8, 0xd8c8b8, 0xe8d8a8, 0xc8e8d8, 0xe8c8d8, 0xd8d8c8];
 shopDefs.forEach(function (sd, i) {
-  var bz = -180 + i * 34, bh = 8 + rnd() * 8, bw = 8 + rnd() * 4, bd = 7;
+  var bz = -180 + i * 34, bh = 20 + rnd() * 8, bw = 8 + rnd() * 4, bd = 7;
   var bx = -17 - bw / 2;
   var b = box(bw, bh, bd, shopCols[i], bx, bh / 2, bz);
   var winMat = new THREE.MeshBasicMaterial({ color: 0x9ae8ff });
@@ -130,7 +130,7 @@ shopDefs.forEach(function (sd, i) {
   var awn = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.14, bw + 1.5), new THREE.MeshLambertMaterial({ color: 0xe82020 }));
   awn.position.set(bx + bw / 2 + 1.0, 3.0, bz); awn.rotation.z = -0.12; scene.add(awn);
   if (bh > 9) {
-    [5.5, 8.5].forEach(function (by) {
+    [5.5, 8.5, 12.5, 15.5, 18.5].forEach(function (by) {
       if (by < bh - 1) {
         var balc = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.15, 5.5), new THREE.MeshLambertMaterial({ color: 0xffffff }));
         balc.position.set(bx + bw / 2 + 0.7, by, bz); scene.add(balc);
@@ -225,21 +225,30 @@ segs.forEach(function (sg, si) {
   for (var bi = 0; bi < n; bi++) {
     var span = sg[1] - sg[0] - 24;
     var bz = sg[0] + 12 + bi * (n > 1 ? span / (n - 1) : 0);
-    var bh2 = 6 + rnd() * 20;
+    var bh2 = 24 + rnd() * 10;
     var bw2 = 10 + rnd() * 4, bd2 = 12 + rnd() * 8;
     var bx2 = -44 - rnd() * 4;
     texBox(bw2, bh2, bd2, facadeNames[(si * 2 + bi) % 3], bx2, bh2 / 2, bz, towerTints[(si * 2 + bi) % 4]);
+    // East-face windows (street side): the block row was blank from the
+    // road; three columns, one row every 3 m, same offset as the shops.
+    [-3, 0, 3].forEach(function (wz) {
+      for (var wy = 4.0; wy < bh2 - 1; wy += 3) {
+        var bwin = new THREE.Mesh(new THREE.PlaneGeometry(2.0, 2.2), winMatMid);
+        bwin.position.set(bx2 + bw2 / 2 + 0.06, wy, bz + wz); bwin.rotation.y = Math.PI / 2; scene.add(bwin);
+      }
+    });
     if (bi % 2 === 0) box(bw2 * 0.4, 1, bd2 * 0.4, 0x666666, bx2, bh2 + 0.5, bz);
+    if (bi % 2 === 1) box(0.15, 3, 0.15, 0x666666, bx2, bh2 + 1.5, bz);
   }
 });
 // Density fillers: fixed buildings in the gaps of the block row, then a
 // second skyline row — all fixed sizes, no seeded calls, so the layout
 // stays deterministic while the city reads denser.
-[[-176, 12, 10, 10], [-112, 9, 16, 10], [92, 13, 12, 10], [176, 11, 16, 10]].forEach(function (f, fi) {
+[[-176, 28, 10, 10], [-112, 26, 16, 10], [92, 30, 12, 10], [176, 27, 16, 10]].forEach(function (f, fi) {
   texBox(f[2], f[1], f[3], facadeNames[fi % 3], -44, f[1] / 2, f[0], towerTints[(fi + 1) % 4]);
   if (fi % 2 === 0) box(f[2] * 0.4, 1, f[3] * 0.4, 0x666666, -44, f[1] + 0.5, f[0]);
 });
-[[-150, 20, 10, 8], [-105, 26, 12, 8], [-48, 16, 10, 8], [-5, 24, 12, 8], [52, 18, 10, 8], [95, 28, 12, 8], [130, 22, 10, 8], [195, 16, 12, 8]].forEach(function (f, fi) {
+[[-150, 32, 10, 8], [-105, 36, 12, 8], [-48, 30, 10, 8], [-5, 34, 12, 8], [52, 30, 10, 8], [95, 36, 12, 8], [130, 32, 10, 8], [195, 28, 12, 8]].forEach(function (f, fi) {
   texBox(f[2], f[1], f[3], facadeNames[fi % 3], -56, f[1] / 2, f[0], towerTints[(fi + 2) % 4]);
   if (fi % 2 === 1) box(f[2] * 0.4, 1, f[3] * 0.4, 0x666666, -56, f[1] + 0.5, f[0]);
 });
