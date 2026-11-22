@@ -66,57 +66,57 @@ function makeHead(skinM, hairM, opts) {
   skull.scale.set(0.96, 1.22, 0.98); head.add(skull);
   var jaw = new THREE.Mesh(new THREE.SphereGeometry(0.085, 14, 12), skinM);
   jaw.scale.set(0.72, 0.62, 0.85); jaw.position.set(0, -0.085, 0.015); head.add(jaw);
-  var hair = new THREE.Mesh(new THREE.SphereGeometry(0.138, 20, 16, 0, Math.PI * 2, 0, Math.PI * 0.36), hairM);
-  hair.scale.set(1.04, 1.12, 1.08); hair.position.set(0, 0.02, -0.015); head.add(hair);
+  var hair = new THREE.Mesh(new THREE.SphereGeometry(0.138, 20, 16, 0, Math.PI * 2, 0, Math.PI * 0.30), hairM);
+  hair.scale.set(1.04, 1.12, 1.08); hair.position.set(0, 0.035, -0.025); head.add(hair);
   var nape = new THREE.Mesh(new THREE.SphereGeometry(0.10, 14, 12), hairM);
   nape.scale.set(1.0, 0.55, 0.55); nape.position.set(0, -0.02, -0.06); head.add(nape);
   [-0.055, -0.018, 0.018, 0.055].forEach(function (lx) {
     var lock = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.012, 0.04, 6), hairM);
-    lock.position.set(lx, -0.08, -0.11); lock.rotation.x = 0.15; head.add(lock);
+    lock.position.set(lx, -0.06, -0.11); lock.rotation.x = 0.15; head.add(lock);
   });
   var crown = new THREE.Mesh(new THREE.SphereGeometry(0.105, 14, 12), hairM);
-  crown.scale.set(1.35, 0.75, 1.15); crown.position.set(0.02, 0.11, -0.03); head.add(crown);
+  crown.scale.set(1.25, 0.55, 1.05); crown.position.set(0.01, 0.10, -0.04); head.add(crown);
   var backB1 = new THREE.Mesh(new THREE.SphereGeometry(0.075, 14, 12), hairM);
   backB1.scale.set(1.0, 0.7, 0.55); backB1.position.set(-0.05, 0.06, -0.095); head.add(backB1);
   var backB2 = new THREE.Mesh(new THREE.SphereGeometry(0.075, 14, 12), hairM);
   backB2.scale.set(1.0, 0.7, 0.55); backB2.position.set(0.05, 0.06, -0.095); head.add(backB2);
   var sweep = new THREE.Mesh(new THREE.SphereGeometry(0.105, 14, 12), hairM);
-  sweep.scale.set(0.6, 0.9, 1.0); sweep.position.set(0.085, 0.02, -0.01); head.add(sweep);
+  sweep.scale.set(0.01, 0.01, 0.01); sweep.position.set(0, 0.10, -0.05); head.add(sweep);
   var fringe = new THREE.Mesh(new THREE.SphereGeometry(0.10, 14, 12), hairM);
-  fringe.scale.set(1.10, 0.30, 0.45); fringe.position.set(0.04, 0.15, 0.045); head.add(fringe);
+  fringe.scale.set(1.05, 0.16, 0.35); fringe.position.set(0.02, 0.165, 0.02); head.add(fringe);
   [-0.125, 0.125].forEach(function (ex) {
     var sb = new THREE.Mesh(new THREE.SphereGeometry(0.04, 12, 10), hairM);
-    sb.scale.set(0.45, 1.2, 0.6); sb.position.set(ex, -0.02, 0.03); head.add(sb);
+    sb.scale.set(0.01, 0.01, 0.01); sb.position.set(ex * 0.4, 0.10, -0.05); head.add(sb);
   });
   [-0.135, 0.135].forEach(function (ex) {
     var ear = new THREE.Mesh(new THREE.SphereGeometry(0.036, 12, 10), skinM);
-    ear.scale.set(0.5, 1, 0.8); ear.position.set(ex, 0, 0); head.add(ear);
+    ear.scale.set(0.55, 1.15, 0.85); ear.position.set(ex, 0, 0); head.add(ear);
   });
   if (opts.eyes) {
-    [-0.055, 0.055].forEach(function (ex) {
+    [-0.048, 0.048].forEach(function (ex) {
       var iris = new THREE.Mesh(new THREE.SphereGeometry(0.022, 12, 10), new THREE.MeshLambertMaterial({ color: 0x2a1a10 }));
-      iris.scale.set(1, 1.25, 0.4); iris.position.set(ex, 0.025, 0.120); head.add(iris);
+      iris.scale.set(1, 1.25, 0.4); iris.position.set(ex, 0.025, opts.faceGlasses ? 0.100 : 0.098); head.add(iris);
       var glint = new THREE.Mesh(new THREE.SphereGeometry(0.0045, 8, 6), new THREE.MeshLambertMaterial({ color: 0xffffff }));
-      glint.scale.set(1, 1, 0.5); glint.position.set(ex - 0.005, 0.031, 0.130); head.add(glint);
-      var brow = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.012, 0.012), hairM);
-      brow.position.set(ex, 0.072, 0.124); head.add(brow);
+      glint.scale.set(1, 1, 0.5); glint.position.set(ex - 0.005, 0.031, opts.faceGlasses ? 0.100 : 0.108); head.add(glint);
+      var brow = new THREE.Mesh(new THREE.BoxGeometry(0.042, 0.014, 0.012), hairM);
+      brow.position.set(ex, 0.072, 0.084); head.add(brow);
     });
   }
   if (opts.faceGlasses) {
-    var sgM = new THREE.MeshBasicMaterial({ color: 0x0a0a0c });
+    var sgM = new THREE.MeshLambertMaterial({ color: 0x1e1e22 });
     [-0.044, 0.044].forEach(function (ex) {
-      var lens = new THREE.Mesh(new THREE.BoxGeometry(0.068, 0.040, 0.010), sgM);
-      lens.position.set(ex, 0.022, 0.121);
+      var lens = new THREE.Mesh(new THREE.BoxGeometry(0.056, 0.024, 0.008), sgM);
+      lens.position.set(ex, 0.028, 0.108);
       lens.rotation.y = ex < 0 ? 0.12 : -0.12;
       head.add(lens);
     });
-    var topBar = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.010, 0.012), sgM);
-    topBar.position.set(0, 0.044, 0.122); head.add(topBar);
-    var bridge = new THREE.Mesh(new THREE.BoxGeometry(0.016, 0.007, 0.010), sgM);
-    bridge.position.set(0, 0.022, 0.122); head.add(bridge);
+    var topBar = new THREE.Mesh(new THREE.BoxGeometry(0.125, 0.004, 0.008), sgM);
+    topBar.position.set(0, 0.041, 0.112); head.add(topBar);
+    var bridge = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.004, 0.008), sgM);
+    bridge.position.set(0, 0.028, 0.110); head.add(bridge);
     [-0.10, 0.10].forEach(function (ax) {
-      var temple = new THREE.Mesh(new THREE.BoxGeometry(0.008, 0.007, 0.09), sgM);
-      temple.position.set(ax, 0.028, 0.085); head.add(temple);
+      var temple = new THREE.Mesh(new THREE.BoxGeometry(0.006, 0.005, 0.09), sgM);
+      temple.position.set(ax, 0.030, 0.085); head.add(temple);
     });
   }
   if (opts.headGlasses) {
@@ -139,14 +139,14 @@ function makeHead(skinM, hairM, opts) {
     });
   }
   var nose = new THREE.Mesh(new THREE.SphereGeometry(0.015, 10, 8), skinM);
-  nose.scale.set(0.85, 1.1, 0.85); nose.position.set(0, -0.028, 0.122); head.add(nose);
+  nose.scale.set(0.85, 1.1, 0.85); nose.position.set(0, -0.028, 0.120); head.add(nose);
   if (opts.smile) {
-    var smile = new THREE.Mesh(new THREE.TorusGeometry(0.034, 0.006, 6, 12, Math.PI), new THREE.MeshLambertMaterial({ color: 0x4a1a1a }));
-    smile.position.set(0, -0.078, 0.115); smile.rotation.z = Math.PI;
+    var smile = new THREE.Mesh(new THREE.TorusGeometry(0.030, 0.005, 6, 12, Math.PI), new THREE.MeshLambertMaterial({ color: 0x7a4a3a }));
+    smile.position.set(0, -0.078, 0.094); smile.rotation.z = Math.PI;
     head.add(smile);
   } else {
-    var mouth = new THREE.Mesh(new THREE.BoxGeometry(0.048, 0.009, 0.010), new THREE.MeshLambertMaterial({ color: 0x4a1a1a }));
-    mouth.position.set(0, -0.085, 0.115); head.add(mouth);
+    var mouth = new THREE.Mesh(new THREE.BoxGeometry(0.036, 0.005, 0.008), new THREE.MeshLambertMaterial({ color: 0x8a5a48 }));
+    mouth.position.set(0, -0.085, 0.092); head.add(mouth);
   }
   return head;
 }
