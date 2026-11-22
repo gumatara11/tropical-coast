@@ -32,6 +32,7 @@
   #cr1{right:26px;bottom:150px;width:64px;height:64px;font-size:24px}
   #cr2{right:26px;bottom:76px;width:64px;height:64px;font-size:24px}
   #cr3{right:110px;bottom:26px;width:86px;height:86px;font-size:22px}
+  #atk{right:110px;bottom:126px;width:86px;height:86px;font-size:38px;background:rgba(255,42,138,.55)}
   #enter, #talk {left:50%;bottom:240px;transform:translateX(-50%);background:rgba(20,10,40,.8);border:2px solid #fff;border-radius:10px;padding:10px 18px;font-size:22px;font-weight:700;display:none}
   #enter b, #talk b{background:#fff;color:#111;border-radius:6px;padding:2px 10px;margin-right:8px}
   #objective{display:none !important}
@@ -59,7 +60,7 @@
   #dispatch .chip.inter{background:#9a6aff}
   #dispatch .chip.block{background:#b02a2a}
   #dispatch .more{display:block;text-align:center;color:#ffd23f;font-size:13px;padding-top:3px}
-  #weapons{bottom:232px;right:16px;display:flex;gap:6px}
+  #weapons{bottom:232px;right:16px;display:flex;gap:6px;pointer-events:auto;cursor:pointer}
   #weapons div{width:52px;height:66px;background:rgba(20,10,40,.72);border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff}
   #weapons div.on{border:2px solid #ffd23f;background:#ff8a2a}
   #weapons svg{width:34px;height:34px;fill:#fff}
@@ -110,7 +111,7 @@
 <div class="hud" id="fist">👊</div>
 <div class="hud" id="health"><div class="hrow"><span>❤️</span><div class="bar"><i id="healthBar"></i></div><b id="healthNum">100</b></div><div class="hrow"><span>🛡️</span><div class="bar"><i id="armourBar"></i></div><b id="armourNum">50</b></div></div>
 <div class="hud" id="stars">★<span class="dim">★★★</span></div>
-<div class="hud" id="gun">🔫<br>12 / 60</div>
+<div class="hud" id="gun">🔫 PISTOL<br>12 / 60</div>
 <div class="hud" id="gaugeBox"><canvas id="gauge" width="240" height="130"></canvas><br><b id="spdNum">0</b> <span>KM/H</span></div>
 <div class="hud" id="enter"><b>E</b>Enter Vehicle</div>
 <div class="hud" id="objective">★ MISSION: Talk to Luna</div>
@@ -124,7 +125,7 @@
 <div id="talkDlg"><div id="talkHead"><span id="talkPortrait">L</span><span id="talkName">Luna</span><span id="talkRole">CHILDHOOD FRIEND</span></div><div id="talkBox">Gito! You're back!<span class="dlgArrow">▼</span></div></div>
 <div id="missionBanner"></div>
 <div class="ctl" id="cl1">◀</div><div class="ctl" id="cl2">▶</div>
-<div class="ctl" id="cr1">▲</div><div class="ctl" id="cr2">▼</div><div class="ctl" id="cr3">☰</div>
+<div class="ctl" id="cr1">▲</div><div class="ctl" id="cr2">▼</div><div class="ctl" id="atk">👊</div><div class="ctl" id="cr3">☰</div>
 <button id="muteBtn">🔊</button>
 <div id="splash">
   <div id="splashLogo"><svg viewBox="0 0 360 88" aria-hidden="true"><rect x="8" y="42" width="34" height="46" fill="#111"/><rect x="46" y="30" width="26" height="58" fill="#111"/><rect x="76" y="50" width="30" height="38" fill="#111"/><rect x="110" y="22" width="28" height="66" fill="#ff2a8a"/><rect x="142" y="38" width="32" height="50" fill="#111"/><rect x="178" y="28" width="24" height="60" fill="#ff5a9a"/><rect x="206" y="46" width="30" height="42" fill="#111"/><rect x="240" y="34" width="26" height="54" fill="#111"/><path d="M316 88 Q322 56 316 36" stroke="#ffd23f" stroke-width="6" fill="none" stroke-linecap="round"/><path d="M316 36 Q294 20 274 26" stroke="#ffd23f" stroke-width="5" fill="none" stroke-linecap="round"/><path d="M316 36 Q300 12 286 8" stroke="#ffd23f" stroke-width="5" fill="none" stroke-linecap="round"/><path d="M316 36 Q316 10 318 2" stroke="#ffd23f" stroke-width="5" fill="none" stroke-linecap="round"/><path d="M316 36 Q332 14 346 10" stroke="#ffd23f" stroke-width="5" fill="none" stroke-linecap="round"/><path d="M316 36 Q338 24 354 22" stroke="#ffd23f" stroke-width="5" fill="none" stroke-linecap="round"/></svg>Tropical<span>Coast</span></div>

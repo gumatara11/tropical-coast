@@ -20,6 +20,76 @@ var wanted = 0, wantedT = 0, carCond = 100;
 // regens slowly once the heat is off. Ammo is the real pistol loadout.
 var health = 100, armour = 50, ammo = 12, reserve = 60, lastHitT = -99;
 function damagePlayer(n) { lastHitT = t; if (armour > 0) { var a = Math.min(armour, n); armour -= a; n -= a; } if (n > 0) health = Math.max(5, health - n); }
+// Round 19: combat — the game shipped with weapon slots on the HUD but NO
+// way to attack at all (no input, no hit code), so Gito could not punch.
+// Weapon 1..7, picked with keys 1-7 or by tapping a slot; fist/bat are
+// melee, the guns fire. Pistol keeps the real ammo/reserve loadout.
+var weapon = 1;
+var attackT = 0, attackCd = 0;
+var smgAmmo = 24, smgReserve = 120, sgAmmo = 6, sgReserve = 24, rfAmmo = 20, rfReserve = 80, snAmmo = 5, snReserve = 20;
+var WEAPON_DEFS = {
+  1: { name: 'PISTOL', range: 30, dmg: 15, cd: 0.3, gun: true },
+  2: { name: 'SMG', range: 25, dmg: 8, cd: 0.12, gun: true },
+  3: { name: 'SHOTGUN', range: 12, dmg: 30, cd: 0.9, gun: true },
+  4: { name: 'RIFLE', range: 50, dmg: 25, cd: 0.5, gun: true },
+  5: { name: 'SNIPER', range: 80, dmg: 50, cd: 1.2, gun: true },
+  6: { name: 'BAT', range: 2.8, dmg: 20, cd: 0.5 },
+  7: { name: 'FIST', range: 2.4, dmg: 10, cd: 0.35 }
+};
+function weaponAmmo() {
+  if (weapon === 1) return { a: ammo, r: reserve };
+  if (weapon === 2) return { a: smgAmmo, r: smgReserve };
+  if (weapon === 3) return { a: sgAmmo, r: sgReserve };
+  if (weapon === 4) return { a: rfAmmo, r: rfReserve };
+  if (weapon === 5) return { a: snAmmo, r: snReserve };
+  return { a: Infinity, r: Infinity };
+}
+// Spend one round of the selected gun: 'fire', 'reload' (mag refilled
+// from reserve, longer cooldown), 'dry' (nothing left) or 'melee'.
+function spendAmmo() {
+  var pools = { 1: ['ammo', 'reserve', 12], 2: ['smgAmmo', 'smgReserve', 24], 3: ['sgAmmo', 'sgReserve', 6], 4: ['rfAmmo', 'rfReserve', 20], 5: ['snAmmo', 'snReserve', 5] };
+  var p = pools[weapon];
+  if (!p) return 'melee';
+  if (window[p[0]] > 0) { window[p[0]]--; return 'fire'; }
+  if (window[p[1]] > 0) { var n = Math.min(p[2], window[p[1]]); window[p[1]] -= n; window[p[0]] = n - 1; return 'reload'; }
+  return 'dry';
+}
+// Attack the nearest NPC in front of the player, in range and in arc.
+// Melee needs a wide arc, guns a narrow one. A hit knocks the NPC back,
+// raises their arms in panic, flashes the spark and draws the police;
+// at 0 hp they fall over and get back up after 8 s.
+function tryAttack() {
+  if (screen !== 'game' && screen !== 'drive') return;
+  if (!onFoot || talking || cover) return;
+  if (attackCd > 0) return;
+  var def = WEAPON_DEFS[weapon];
+  var res = def.gun ? spendAmmo() : 'melee';
+  if (res === 'dry') { attackCd = 0.3; return; }
+  attackT = 0.25; attackCd = res === 'reload' ? 0.9 : def.cd;
+  var fx = -Math.sin(heading), fz = -Math.cos(heading);
+  var best = null, bd = def.range;
+  peds.concat(chatters).concat(beachgoers).forEach(function (pd) {
+    if (pd.userData.downT > 0) return;
+    var dx = pd.position.x - px, dz = pd.position.z - pz;
+    var d = Math.hypot(dx, dz);
+    if (d > def.range) return;
+    var dot = (dx * fx + dz * fz) / (d || 1);
+    if (def.gun ? dot < 0.94 : dot < 0.5) return;
+    if (d < bd) { bd = d; best = pd; }
+  });
+  if (best) {
+    if (best.userData.hp === undefined) best.userData.hp = 100;
+    best.userData.hp -= def.dmg;
+    best.userData.hitT = 0.6;
+    var kx = (best.position.x - px) / (bd || 1), kz = (best.position.z - pz) / (bd || 1);
+    var nx = best.position.x + kx * 1.4, nz = best.position.z + kz * 1.4;
+    if (walkable(nx, nz)) { best.position.x = nx; best.position.z = nz; }
+    sparkT = 0.3;
+    if (best.userData.hp <= 0) { best.userData.downT = 8; best.userData.hp = 100; best.rotation.z = Math.PI / 2; }
+    raiseWanted(1);
+  }
+  if (def.gun) playShot(); else playThud();
+}
 // Mission stage timer (real elapsed time on the current stage).
 var stageStartT = 0, lastStageKey = '';
 function raiseWanted(n) { if (wanted < n) wanted = n; wantedT = 25; }

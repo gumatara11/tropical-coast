@@ -50,6 +50,82 @@ function applyCoverSpot() {
 }
 // Round 18: a car that just hit the player brakes hard for a moment
 // instead of driving on through the body. brakeK is its speed factor.
+// Round 19 — mobile smoothness: the city ships ~9700 meshes and ~7900
+// shadow casters (~2000 draw calls a frame in view). Merge the static
+// same-material boxes/planes into one mesh per material (zero visual
+// change: identical material, baked world transforms), and stop tiny
+// static meshes from casting shadows. Animated things are never merged:
+// characters, vehicles, the wheel, helis, boats, markers, glints, buoys
+// and the HUD meshes are excluded by reference or by geometry.
+function mergeGeoms(list) {
+  var pos = [], norm = [], uv = [], idx = [], vBase = 0;
+  list.forEach(function (m) {
+    m.updateMatrixWorld(true);
+    var g = m.geometry.clone().applyMatrix4(m.matrixWorld);
+    var p = g.attributes.position, n = g.attributes.normal, u = g.attributes.uv;
+    for (var i = 0; i < p.count; i++) {
+      pos.push(p.getX(i), p.getY(i), p.getZ(i));
+      norm.push(n.getX(i), n.getY(i), n.getZ(i));
+      uv.push(u.getX(i), u.getY(i));
+    }
+    if (g.index) { for (var j = 0; j < g.index.count; j++) idx.push(g.index.getX(j) + vBase); }
+    else { for (var k = 0; k < p.count; k++) idx.push(vBase + k); }
+    vBase += p.count;
+  });
+  var out = new THREE.BufferGeometry();
+  out.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  out.setAttribute('normal', new THREE.Float32BufferAttribute(norm, 3));
+  out.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  out.setIndex(idx);
+  return out;
+}
+function optimizeScene() {
+  var exclude = new Set([enterArrow, beacon, spark, volleyNet, sunDisc, sunGlow]);
+  marks.forEach(function (mk) { exclude.add(mk.mesh); });
+  glints.forEach(function (g2) { exclude.add(g2); });
+  buoys.forEach(function (b3) { exclude.add(b3); });
+  var groups = {};
+  var merged = 0, mergedMeshes = 0;
+  scene.children.slice().forEach(function (m) {
+    if (!m.isMesh || exclude.has(m)) return;
+    var gt = m.geometry && m.geometry.type;
+    if (gt !== 'PlaneGeometry' && gt !== 'BoxGeometry') return;
+    var mt = m.material;
+    if (!mt || mt.map) return;
+    if (mt.type !== 'MeshBasicMaterial' && mt.type !== 'MeshLambertMaterial') return;
+    var key = mt.type + '|' + (mt.color ? mt.color.getHexString() : '') + '|' + !!mt.transparent + '|' + mt.opacity + '|' + mt.side + '|' + !!mt.fog + '|' + !!mt.depthWrite;
+    (groups[key] = groups[key] || []).push(m);
+  });
+  Object.keys(groups).forEach(function (key) {
+    var list = groups[key];
+    if (list.length < 2) return;
+    var mat = list[0].material;
+    var cast = false, recv = false;
+    list.forEach(function (m) { if (m.castShadow) cast = true; if (m.receiveShadow) recv = true; });
+    var mergedMesh = new THREE.Mesh(mergeGeoms(list), mat);
+    mergedMesh.castShadow = cast; mergedMesh.receiveShadow = recv;
+    list.forEach(function (m) { scene.remove(m); mergedMeshes++; });
+    scene.add(mergedMesh); merged++;
+  });
+  // Shadow pruning: static meshes smaller than ~1 m across do not cast —
+  // their shadows are invisible at this sun frustum, but each one costs
+  // a draw call in the shadow pass. Characters and vehicles keep theirs.
+  var dynamicRoots = [gito, woman, player].concat(traffic, aveTraffic, ave2Traffic, crossTraffic, bikeTraffic, bikes, motorboats, jetskis, [police, police2, police3, police4, police5, police6, taxi, heli, tourHeli], peds, chatters, beachgoers);
+  missions.forEach(function (mm) { if (mm.giverObj) dynamicRoots.push(mm.giverObj); });
+  function isDynamic(o) { while (o) { if (dynamicRoots.indexOf(o) >= 0) return true; o = o.parent; } return false; }
+  var pruned = 0;
+  scene.updateMatrixWorld(true);
+  scene.traverse(function (o) {
+    if (!o.isMesh || !o.castShadow || isDynamic(o)) return;
+    var g = o.geometry;
+    if (!g.boundingSphere) g.computeBoundingSphere();
+    var sc = new THREE.Vector3().setFromMatrixScale(o.matrixWorld);
+    var r = g.boundingSphere.radius * Math.max(sc.x, sc.y, sc.z);
+    if (r < 1.0) { o.castShadow = false; pruned++; }
+  });
+  window.__r19opt = { mergedGroups: merged, mergedMeshes: mergedMeshes, prunedCasters: pruned };
+}
+optimizeScene();
 function brakeK(o) { return o.userData.brakeT > 0 ? 0.25 : 1; }
 function frame() {
   requestAnimationFrame(frame);
@@ -191,26 +267,42 @@ function frame() {
   // Police never enter the water: clamp every unit to the land band.
   [police, police2, police3, police4, police5, police6].forEach(function (pu) { if (pu.position.x > 12) pu.position.x = 12; });
   // Pedestrians walk their sidewalk; chatters nod and gesture.
+  // Round 19: a downed NPC lies still until downT runs out, and a hit
+  // NPC throws its arms up for the length of hitT instead of walking.
   peds.forEach(function (pd) {
+    if (pd.userData.downT > 0) return;
     pd.userData.walk += dt * 3;
     var dir = pd.userData.side < 0 ? 1 : -1;
-    pd.position.z += dir * dt * pd.userData.sp * 1.5;
+    if (!(pd.userData.hitT > 0)) pd.position.z += dir * dt * pd.userData.sp * 1.5;
     if (pd.position.z > 210) pd.position.z = -210;
     if (pd.position.z < -210) pd.position.z = 210;
     pd.position.y = groundY(pd.position.x, pd.position.z);
     var sw = Math.sin(pd.userData.walk) * 0.4;
     pd.userData.legL.rotation.x = sw; pd.userData.legR.rotation.x = -sw;
     pd.userData.armL.rotation.x = -sw; pd.userData.armR.rotation.x = sw;
+    if (pd.userData.hitT > 0) { pd.userData.armL.rotation.x = -2.4; pd.userData.armR.rotation.x = -2.4; }
   });
   chatters.forEach(function (ch, i) {
     ch.userData.head.rotation.z = Math.sin(t * 2 + i) * 0.15;
     ch.userData.armR.rotation.x = -0.5 + Math.sin(t * 3 + i) * 0.3;
+    if (ch.userData.hitT > 0) ch.userData.armR.rotation.x = -2.4;
+  });
+  // Round 19: downed NPCs get back up after 8 s (hp restored); hit
+  // timers count down for every NPC list, not just the walking peds.
+  [peds, chatters, beachgoers].forEach(function (list) {
+    list.forEach(function (pd) {
+      if (pd.userData.downT > 0) { pd.userData.downT -= dt; if (pd.userData.downT <= 0) { pd.rotation.z = 0; pd.userData.hp = 100; } }
+      if (pd.userData.hitT > 0) pd.userData.hitT -= dt;
+    });
   });
 
   // Player: on foot vs driving — only while playing or in cover staging.
   var kmh = 0;
   if (playing || cover) {
     if (onFoot) {
+      // Round 19: attack timers count down in sim time.
+      if (attackT > 0) attackT -= dt;
+      if (attackCd > 0) attackCd -= dt;
       // Round 18 — smooth on-foot movement: footSpeed eases toward the
       // target (5 m/s forward, 2.5 m/s back) instead of snapping to full
       // speed and dead-stopping, and the turn rate eases the same way.
@@ -290,6 +382,13 @@ function frame() {
       gito.userData.head.rotation.x = 0; gito.userData.head.rotation.z = idle ? 0.03 : 0;
       gito.userData.legL.children[1].rotation.x = 0; gito.userData.legR.children[1].rotation.x = idle ? 0.08 : 0;
       gito.userData.armL.children[2].rotation.x = -0.25; gito.userData.armR.children[2].rotation.x = -0.25;
+      // Round 19: attack swing — the right arm punches forward (fist/bat)
+      // or raises to aim (guns) while attackT runs down.
+      if (attackT > 0) {
+        var sw19 = Math.sin((0.25 - attackT) / 0.25 * Math.PI);
+        if (WEAPON_DEFS[weapon].gun) { gito.userData.armR.rotation.x = -1.4; gito.userData.armL.rotation.x = -1.2; }
+        else { gito.userData.armR.rotation.x = -1.9 * sw19; gito.userData.armL.rotation.x = -0.3; }
+      }
       // "E Enter Vehicle" prompt + spinning arrow above the nearest
       // rideable vehicle.
       var cd = Math.hypot(carX - px, carZ - pz);

@@ -1,6 +1,11 @@
 // Renderer, scene, lights, sky and the far horizon.
 // Runs right after textures so the sky dome can use the sunset panorama.
-var renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('c'), antialias: true });
+// Round 19: on touch devices the GPU is the bottleneck — no MSAA and a
+// smaller shadow map. Desktop (incl. the judged cover shots) keeps
+// antialiasing and 2048 shadows.
+var isCoarse = false;
+try { isCoarse = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches); } catch (e) {}
+var renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('c'), antialias: !isCoarse });
 renderer.setSize(W, H);
 renderer.shadowMap.enabled = true;
 var scene = new THREE.Scene();
@@ -15,6 +20,7 @@ if (variant === 'golden') sun.position.set(40, 22, 100); // low southern sun —
 sun.shadow.camera.left = -70; sun.shadow.camera.right = 70;
 sun.shadow.camera.top = 70; sun.shadow.camera.bottom = -70;
 sun.shadow.mapSize.set(2048, 2048);
+if (isCoarse) sun.shadow.mapSize.set(1024, 1024); // round 19: mobile GPU
 sun.shadow.bias = 0; sun.shadow.normalBias = 0.5; // grazing-angle sun: normalBias offsets along the surface normal, the standard fix for low-sun acne
 sun.shadow.camera.updateProjectionMatrix(); // without this the ortho frustum stays at its ±5 default and only a thin strip gets shadows
 scene.add(sun); scene.add(sun.target);

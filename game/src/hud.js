@@ -106,11 +106,11 @@ function districtAt(x, z) {
 // "T" at 30 px), the pistol's ammo is the real loadout, fists are infinite.
 var WEAPONS = [
   { n: 1, name: 'PISTOL', icon: '<svg viewBox="0 0 24 24"><g transform="translate(12 12) rotate(-45) scale(0.78) translate(-12 -12)"><path d="M2 5h20v3.2H12l-2 9.8H6.2L8 8.2H2V5z"/><rect x="13.5" y="8.6" width="1.8" height="3"/></g></svg>', ammo: function () { return ammo + '/' + reserve; } },
-  { n: 2, name: 'SMG', icon: '<svg viewBox="0 0 24 24"><g transform="translate(12 12) rotate(-45) scale(0.78) translate(-12 -12)"><path d="M1 5h22v3.5H15l-1 10.5H10.5L11.5 8.5H9l-.8 5.5H5l.8-5.5H1V5z"/></g></svg>', ammo: function () { return '—'; } },
-  { n: 3, name: 'SHOTGUN', icon: '<svg viewBox="0 0 24 24"><g transform="translate(12 12) rotate(-45) scale(0.78) translate(-12 -12)"><path d="M1 5.5h22v2.8H14.5l-.5 3.7h-3l.5-3.7H8.5L8 13.5H5L5.5 8.3H1V5.5z"/><rect x="15" y="9" width="5.5" height="2.6"/></g></svg>', ammo: function () { return '—'; } },
-  { n: 4, name: 'RIFLE', icon: '<svg viewBox="0 0 24 24"><g transform="translate(12 12) rotate(-45) scale(0.78) translate(-12 -12)"><rect x="9" y="2.5" width="6" height="2.5"/><path d="M1 5.5h21v3H17l-1 5.5H12.5L13.5 8.5H8l-.8 6H3.8L4.6 8.5H1V5.5z"/></g></svg>', ammo: function () { return '—'; } },
-  { n: 5, name: 'SNIPER', icon: '<svg viewBox="0 0 24 24"><g transform="translate(12 12) rotate(-45) scale(0.78) translate(-12 -12)"><rect x="8" y="2" width="8" height="3"/><path d="M1 6h22v2.5H14l-.8 4.5h-3l.8-4.5H6.5L6 13.5H2.8L3.3 8.5H1V6z"/></g></svg>', ammo: function () { return '—'; } },
-  { n: 6, name: 'BAT', icon: '<span class="wicon">🏏</span>', ammo: function () { return '—'; } },
+  { n: 2, name: 'SMG', icon: '<svg viewBox="0 0 24 24"><g transform="translate(12 12) rotate(-45) scale(0.78) translate(-12 -12)"><path d="M1 5h22v3.5H15l-1 10.5H10.5L11.5 8.5H9l-.8 5.5H5l.8-5.5H1V5z"/></g></svg>', ammo: function () { return smgAmmo + '/' + smgReserve; } },
+  { n: 3, name: 'SHOTGUN', icon: '<svg viewBox="0 0 24 24"><g transform="translate(12 12) rotate(-45) scale(0.78) translate(-12 -12)"><path d="M1 5.5h22v2.8H14.5l-.5 3.7h-3l.5-3.7H8.5L8 13.5H5L5.5 8.3H1V5.5z"/><rect x="15" y="9" width="5.5" height="2.6"/></g></svg>', ammo: function () { return sgAmmo + '/' + sgReserve; } },
+  { n: 4, name: 'RIFLE', icon: '<svg viewBox="0 0 24 24"><g transform="translate(12 12) rotate(-45) scale(0.78) translate(-12 -12)"><rect x="9" y="2.5" width="6" height="2.5"/><path d="M1 5.5h21v3H17l-1 5.5H12.5L13.5 8.5H8l-.8 6H3.8L4.6 8.5H1V5.5z"/></g></svg>', ammo: function () { return rfAmmo + '/' + rfReserve; } },
+  { n: 5, name: 'SNIPER', icon: '<svg viewBox="0 0 24 24"><g transform="translate(12 12) rotate(-45) scale(0.78) translate(-12 -12)"><rect x="8" y="2" width="8" height="3"/><path d="M1 6h22v2.5H14l-.8 4.5h-3l.8-4.5H6.5L6 13.5H2.8L3.3 8.5H1V6z"/></g></svg>', ammo: function () { return snAmmo + '/' + snReserve; } },
+  { n: 6, name: 'BAT', icon: '<span class="wicon">🏏</span>', ammo: function () { return '∞'; } },
   { n: 7, name: 'FIST', icon: '<span class="wicon">👊</span>', ammo: function () { return '∞'; } }
 ];
 var weaponsEl = document.getElementById('weapons');
@@ -119,6 +119,11 @@ var healthBarEl = document.getElementById('healthBar');
 var armourBarEl = document.getElementById('armourBar');
 var healthNumEl = document.getElementById('healthNum');
 var armourNumEl = document.getElementById('armourNum');
+// Round 19: the HUD used to rebuild weapons + mission + dispatch + gun
+// innerHTML EVERY frame. Now each rebuilds only when its string changes
+// (dispatch distance rounded to 5 m, mission timer ticks once a second),
+// and the highlight + gun chip follow the selected weapon.
+var lastWeaponsHtml = null, lastMissionHtml = null, lastDispatchHtml = null, lastGunHtml = null, lastStarsHtml = null;
 function updateHudExtra() {
   var m = curMission();
   var stageKey = missionIdx + '/' + missionStage;
@@ -130,26 +135,27 @@ function updateHudExtra() {
     var done = m ? (missionIdx * 2 + (missionStage === 'do' ? 1 : 0)) : 6;
     var segs = '';
     for (var gi = 0; gi < 6; gi++) segs += '<span class="seg' + (gi < done ? ' on' : '') + '"></span>';
-    if (!m) missionPanelEl.innerHTML = '<b>FREE ROAM</b><span class="mtitle">All Missions Complete!</span><span>★ Enjoy Tropical Coast!</span><div class="stagebar">' + segs + '</div><span class="mtimer">' + timerTxt + '</span>';
+    if (!m) { var mph = '<b>FREE ROAM</b><span class="mtitle">All Missions Complete!</span><span>★ Enjoy Tropical Coast!</span><div class="stagebar">' + segs + '</div><span class="mtimer">' + timerTxt + '</span>'; }
     else {
       var stg = missionStage === 'talk' ? '1/2' : '2/2';
       var obj = missionStage === 'talk' ? 'Talk to ' + m.giver : m.objective;
-      missionPanelEl.innerHTML = '<b>MISSION ' + (missionIdx + 1) + ' · STAGE ' + stg + '</b><span class="mtitle">' + m.name + '</span><span>★ ' + obj + '</span><div class="stagebar">' + segs + '</div><span class="mtimer">' + timerTxt + '</span>';
+      var mph = '<b>MISSION ' + (missionIdx + 1) + ' · STAGE ' + stg + '</b><span class="mtitle">' + m.name + '</span><span>★ ' + obj + '</span><div class="stagebar">' + segs + '</div><span class="mtimer">' + timerTxt + '</span>';
     }
+    if (mph !== lastMissionHtml) { missionPanelEl.innerHTML = mph; lastMissionHtml = mph; }
   }
   if (districtEl) districtEl.textContent = districtAt(px, pz);
-  if (starsEl) { var st = ''; for (var si = 0; si < 5; si++) st += si < wanted ? '★' : '<span class="dim">★</span>'; starsEl.innerHTML = st; }
+  if (starsEl) { var st = ''; for (var si = 0; si < 5; si++) st += si < wanted ? '★' : '<span class="dim">★</span>'; if (st !== lastStarsHtml) { starsEl.innerHTML = st; lastStarsHtml = st; } }
   if (carInfoEl) carInfoEl.textContent = 'COAST GT · CONDITION ' + carCond + '%';
   if (radioEl) radioEl.textContent = '♪ RADIO TROPICAL 98.6 — Island Pop';
   if (healthBarEl) healthBarEl.style.width = health + '%';
   if (armourBarEl) armourBarEl.style.width = (armour / 50 * 100) + '%';
   if (healthNumEl) healthNumEl.textContent = Math.round(health);
   if (armourNumEl) armourNumEl.textContent = Math.round(armour);
-  if (gunEl) gunEl.innerHTML = '🔫<br>' + ammo + ' / ' + reserve;
+  if (gunEl) { var wpn19 = WEAPON_DEFS[weapon]; var wa19 = weaponAmmo(); var gh = wpn19.gun ? '🔫 ' + wpn19.name + '<br>' + wa19.a + ' / ' + wa19.r : (weapon === 6 ? '🏏 BAT' : '👊 FIST') + '<br>∞'; if (gh !== lastGunHtml) { gunEl.innerHTML = gh; lastGunHtml = gh; } }
   if (weaponsEl) {
     var wh = '';
-    WEAPONS.forEach(function (w) { wh += '<div' + (w.n === 1 ? ' class="on"' : '') + '>' + w.icon + '<b>' + w.n + '</b>' + w.name + '<br><em>' + w.ammo() + '</em></div>'; });
-    weaponsEl.innerHTML = wh;
+    WEAPONS.forEach(function (w) { wh += '<div' + (w.n === weapon ? ' class="on"' : '') + '>' + w.icon + '<b>' + w.n + '</b>' + w.name + '<br><em>' + w.ammo() + '</em></div>'; });
+    if (wh !== lastWeaponsHtml) { weaponsEl.innerHTML = wh; lastWeaponsHtml = wh; }
   }
   if (dispatchEl) {
     if (wanted > 0) {
@@ -163,12 +169,12 @@ function updateHudExtra() {
       ];
       var dh = '<b>POLICE DISPATCH · 7 UNITS</b>';
       units.forEach(function (u) {
-        var dd = Math.round(Math.hypot(u[1].position.x - px, u[1].position.z - pz));
+        var dd = Math.round(Math.hypot(u[1].position.x - px, u[1].position.z - pz) / 5) * 5;
         dh += '<span class="drow"><i>' + u[0] + '</i><b class="chip ' + u[3] + '">' + u[2] + '</b><em>' + dd + 'm</em></span>';
       });
       dh += '<span class="more">+1 more unit · DELTA-9 PURSUIT</span>';
       dispatchEl.style.display = 'block';
-      dispatchEl.innerHTML = dh;
+      if (dh !== lastDispatchHtml) { dispatchEl.innerHTML = dh; lastDispatchHtml = dh; }
     } else dispatchEl.style.display = 'none';
   }
 }

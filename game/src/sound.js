@@ -47,6 +47,20 @@ function playThud() {
     osc.start(); osc.stop(audioCtx.currentTime + 0.22);
   } catch (e) {}
 }
+// Round 19: a short sharp crack for gunfire.
+function playShot() {
+  if (!audioCtx || !masterGain) return;
+  try {
+    var osc = audioCtx.createOscillator(); osc.type = 'square';
+    osc.frequency.setValueAtTime(900, audioCtx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(120, audioCtx.currentTime + 0.09);
+    var g = audioCtx.createGain();
+    g.gain.setValueAtTime(0.25, audioCtx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1);
+    osc.connect(g); g.connect(masterGain);
+    osc.start(); osc.stop(audioCtx.currentTime + 0.12);
+  } catch (e) {}
+}
 function toggleMute() {
   audioMuted = !audioMuted;
   if (masterGain) masterGain.gain.value = audioMuted ? 0 : 0.5;
