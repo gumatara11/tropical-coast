@@ -251,7 +251,7 @@ var gito = new THREE.Group();
   collar.position.y = 1.50; gito.add(collar);
   var armL = new THREE.Group(), armR = new THREE.Group();
   armL.position.set(-0.15, 1.44, 0); armR.position.set(0.15, 1.44, 0);
-  armL.rotation.z = 0.01; armR.rotation.z = -0.01;
+  armL.rotation.z = -0.30; armR.rotation.z = 0.30;
   [[armL, -1], [armR, 1]].forEach(function (pair) {
     var ag = pair[0], side = pair[1];
     var shoulder = new THREE.Mesh(new THREE.SphereGeometry(0.098, 16, 12), mShirt);
@@ -335,7 +335,7 @@ var woman = new THREE.Group();
   woman.add(legL); woman.add(legR);
   var armL = new THREE.Group(), armR = new THREE.Group();
   armL.position.set(-0.15, 1.44, 0); armR.position.set(0.15, 1.44, 0);
-  armL.rotation.z = 0.01; armR.rotation.z = -0.01;
+  armL.rotation.z = -0.30; armR.rotation.z = 0.30;
   [[armL, -1], [armR, 1]].forEach(function (pair) {
     var ag = pair[0], side = pair[1];
     var shoulder = new THREE.Mesh(new THREE.SphereGeometry(0.085, 16, 12), wSkin);

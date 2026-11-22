@@ -225,10 +225,11 @@ function frame() {
       var wp = mv !== 0 ? Math.sin(t * 10) * 0.5 : 0;
       gito.userData.legL.rotation.x = idle ? -0.05 : wp; gito.userData.legR.rotation.x = idle ? 0.03 : -wp;
       gito.userData.armL.rotation.x = idle ? -0.04 : -wp; gito.userData.armR.rotation.x = idle ? 0.05 : wp;
-      // Idle arms angle OUTWARD — glued to the body, the hands were
-      // invisible from behind. Riding/staging poses restore the inward
-      // angle via stagePose.
-      gito.userData.armL.rotation.z = -0.02; gito.userData.armR.rotation.z = 0.02;
+      // Idle arms angle OUTWARD (0.30 rad) — pivot at the shoulder so
+      // the sleeve top stays merged with the torso while the hands hang
+      // clear of the hips/thighs. Riding/staging poses restore the
+      // inward angle via stagePose.
+      gito.userData.armL.rotation.z = -0.30; gito.userData.armR.rotation.z = 0.30;
       // Neutral on-foot pose — resets anything a riding pose set (bent
       // knees/elbows, head tilt, YXZ lean). The walk branch only
       // overwrites thighs/shoulders, so a seated pose would otherwise
