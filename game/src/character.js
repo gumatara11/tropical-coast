@@ -305,8 +305,22 @@ var gito = new THREE.Group();
     var hand = makeHand(mSkin, side); hand.position.y = -0.33; hand.rotation.x = -0.15; elbow.add(hand);
   });
   gito.add(armL); gito.add(armR);
-  var head = makeHead(mSkin, new THREE.MeshLambertMaterial({ color: 0x3a2410 }), { eyes: true, faceGlasses: true });
+  var mHair = new THREE.MeshLambertMaterial({ color: 0x3a2410 });
+  var head = makeHead(mSkin, mHair, { eyes: true, faceGlasses: true });
   gito.add(head);
+  // Round 14 crown shell (Gito only): one combed-back shell covering the
+  // whole crown from the front hairline to the back, hugging the skull.
+  // The round 13 cap stopped at the top of the skull and read as a thin
+  // strip over a bare crown. This shell runs deeper (theta 0.38 pi) and
+  // tips back 0.30 rad, so the front hairline sits just above the brows,
+  // the sides stop above the ears, and the back edge dives to the nape,
+  // swallowing the old back mass instead of ending mid-skull above it
+  // (that mid-skull rim read as a second bun from behind). Same material
+  // as the cap underneath, so the two read as one mass, not two layers.
+  var crown = new THREE.Mesh(new THREE.SphereGeometry(0.115, 20, 16, 0, Math.PI * 2, 0, Math.PI * 0.38), mHair);
+  crown.scale.set(1.14, 1.34, 1.18);
+  crown.rotation.x = -0.30;
+  head.add(crown);
   var hipPts = [];
   [[0.165, 0.10], [0.178, 0.04], [0.182, -0.04], [0.172, -0.10], [0.158, -0.14]].forEach(function (p) { hipPts.push(new THREE.Vector2(p[0], p[1])); });
   var pelvis = new THREE.Mesh(new THREE.LatheGeometry(hipPts, 20), mPants);
