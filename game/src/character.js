@@ -88,7 +88,7 @@ function makeHead(skinM, hairM, opts) {
     var sb = new THREE.Mesh(new THREE.SphereGeometry(0.04, 12, 10), hairM);
     sb.scale.set(0.01, 0.01, 0.01); sb.position.set(ex * 0.4, 0.10, -0.05); head.add(sb);
   });
-  [-0.135, 0.135].forEach(function (ex) {
+  [-0.112, 0.112].forEach(function (ex) {
     var ear = new THREE.Mesh(new THREE.SphereGeometry(0.036, 12, 10), skinM);
     ear.scale.set(0.55, 1.15, 0.85); ear.position.set(ex, 0, 0); head.add(ear);
   });
