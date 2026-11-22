@@ -36,6 +36,11 @@ function walkable(x, z) {
   if (x >= -40 && x <= -24) return true;
   if (x >= -110 && x <= -60) return true;
   if (x >= 13 && x <= 34) return true; // beach + shallows
+  // SA alleys (round 15): the four east-west lanes through the block row.
+  if (x >= -75 && x <= -37 && z >= -121 && z <= -117) return true;
+  if (x >= -75 && x <= -37 && z >= -101 && z <= -97) return true;
+  if (x >= -75 && x <= -37 && z >= 67.63 && z <= 71.63) return true;
+  if (x >= -75 && x <= -37 && z >= 104 && z <= 108) return true;
   return false;
 }
 // Ground height under a character's feet: promenade tiles sit highest,

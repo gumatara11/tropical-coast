@@ -244,6 +244,128 @@ segs.forEach(function (sg, si) {
   if (fi % 2 === 1) box(f[2] * 0.4, 1, f[3] * 0.4, 0x666666, -56, f[1] + 0.5, f[0]);
 });
 
+// ---- SA-style alleys (round 15) ----
+// Infill buildings close the block gaps, leaving 4 m east-west lanes from
+// Avenue 1 (x -37) to Avenue 2 (x -75). Footprints probed 23 Nov
+// (probe-block.json): block row x≈-44, second row x≈-56; lane z-bands sit
+// in the real z-gaps of both rows. Faces that would be coplanar with an
+// existing same-facing wall are offset 0.1 m so nothing z-fights.
+// [z0, z1, h, facadeIdx, tintIdx, xCenter, w]
+var alleyInfill = [
+  [-139.72, -121, 11, 0, 0, -45.5, 12], [-126, -120.9, 7, 2, 2, -56.7, 10.6],
+  [-116.9, -109, 9, 0, 3, -56.7, 10.6], [-107, -100.9, 8, 1, 1, -45.5, 12],
+  [-97, -86.81, 12, 2, 2, -45.5, 12], [-97.1, -86.81, 10, 1, 0, -56.7, 10.6],
+  [56, 67.73, 10, 2, 1, -56.7, 10.6], [71.63, 87, 13, 0, 3, -45.5, 12],
+  [71.53, 91, 11, 0, 2, -56.7, 10.6], [97, 104, 9, 1, 0, -45.5, 12],
+  [99, 104.1, 7, 1, 3, -56.7, 10.6], [108, 118.67, 12, 2, 1, -45.5, 12],
+  [107.9, 116, 11, 0, 0, -56.7, 10.6]
+];
+alleyInfill.forEach(function (f, fi) {
+  var d = f[1] - f[0], cz = (f[0] + f[1]) / 2;
+  texBox(f[6], f[2], d, facadeNames[f[3] % 3], f[5], f[2] / 2, cz, towerTints[f[4] % 4]);
+  if (fi % 2 === 0) box(f[6] * 0.4, 1, d * 0.4, 0x666666, f[5], f[2] + 0.5, cz);
+});
+// Alley props: small fixed helpers, no seeded calls, no extra lights.
+function dumpster(x, z) {
+  var g = new THREE.Group();
+  var body = new THREE.Mesh(new THREE.BoxGeometry(1.8, 1.1, 1.0), new THREE.MeshLambertMaterial({ color: 0x2a4a2a }));
+  body.position.y = 0.55; body.castShadow = true; g.add(body);
+  var lid = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.08, 1.0), new THREE.MeshLambertMaterial({ color: 0x1a3a1a }));
+  lid.position.y = 1.14; lid.rotation.z = 0.06; g.add(lid);
+  g.position.set(x, 0, z); scene.add(g); return g;
+}
+function trashBag(x, z, s) {
+  var b = new THREE.Mesh(new THREE.SphereGeometry(0.28 * (s || 1), 8, 6), new THREE.MeshLambertMaterial({ color: 0x1a1a1a }));
+  b.scale.y = 0.8; b.position.set(x, 0.2 * (s || 1), z); scene.add(b); return b;
+}
+function cardboard(x, z, s, ry) {
+  var c = new THREE.Mesh(new THREE.BoxGeometry(0.7 * (s || 1), 0.5 * (s || 1), 0.6 * (s || 1)), new THREE.MeshLambertMaterial({ color: 0x9a7a4a }));
+  c.position.set(x, 0.25 * (s || 1), z); c.rotation.y = ry || 0; c.castShadow = true; scene.add(c); return c;
+}
+function puddle(x, z, w, d) {
+  var p = new THREE.Mesh(new THREE.PlaneGeometry(w, d), new THREE.MeshBasicMaterial({ color: 0x1a2530 }));
+  p.rotation.x = -Math.PI / 2; p.position.set(x, 0.06, z); scene.add(p); return p;
+}
+function wallPipe(x, z, h) {
+  var pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, h, 8), new THREE.MeshLambertMaterial({ color: 0x777777 }));
+  pipe.position.set(x, h / 2, z); scene.add(pipe);
+  var arm = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 2.4, 8), new THREE.MeshLambertMaterial({ color: 0x777777 }));
+  arm.rotation.z = Math.PI / 2; arm.position.set(x, h - 0.3, z); scene.add(arm);
+  return pipe;
+}
+function acUnit(x, z) {
+  var u = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.7, 0.4), new THREE.MeshLambertMaterial({ color: 0x9a9a9a }));
+  u.position.set(x, 1.3, z); scene.add(u); return u;
+}
+function alleyLamp(x, z) {
+  var pole = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.09, 3.2, 8), new THREE.MeshLambertMaterial({ color: 0x2a2a2a }));
+  pole.position.set(x, 1.6, z); scene.add(pole);
+  var bulb = new THREE.Mesh(new THREE.SphereGeometry(0.26, 8, 8), new THREE.MeshBasicMaterial({ color: 0xffd23f }));
+  bulb.position.set(x, 3.35, z); scene.add(bulb);
+  return bulb;
+}
+function wallBulb(x, y, z) {
+  var b = new THREE.Mesh(new THREE.SphereGeometry(0.18, 8, 8), new THREE.MeshBasicMaterial({ color: 0xffc86a }));
+  b.position.set(x, y, z); scene.add(b); return b;
+}
+function scribbleTexture() {
+  var cv = document.createElement('canvas'); cv.width = 256; cv.height = 128;
+  var g = cv.getContext('2d');
+  g.fillStyle = '#241a2e'; g.fillRect(0, 0, 256, 128);
+  [['#ff5a8a', 20, 90, 90, 30], ['#ffd23f', 60, 100, 140, 40], ['#2ac8ff', 100, 80, 200, 50], ['#37e07a', 30, 50, 180, 95], ['#ff5a5a', 150, 110, 230, 35]].forEach(function (s) {
+    g.strokeStyle = s[0]; g.lineWidth = 7; g.lineCap = 'round';
+    g.beginPath(); g.moveTo(s[1], s[2]); g.lineTo(s[3], s[4]); g.stroke();
+  });
+  g.fillStyle = '#ffffff'; g.font = 'bold 34px Arial'; g.textAlign = 'center';
+  g.fillText('SA', 128, 78);
+  return new THREE.CanvasTexture(cv);
+}
+var scribTex = scribbleTexture();
+// Lane 1: z -121..-117 (seg 1 north gap).
+box(38, 0.05, 4, 0x23232a, -56, 0.025, -119);
+dumpster(-41, -117.9);
+trashBag(-43.2, -118.5); trashBag(-43.9, -117.7, 0.8); trashBag(-39.6, -120.4);
+cardboard(-48, -120.5, 1, 0.3); cardboard(-47.3, -120.6, 0.7, -0.2);
+puddle(-52, -119, 2.6, 1.4);
+wallPipe(-46, -120.85, 4.2);
+acUnit(-56, -117.1); acUnit(-44, -120.8);
+signPlane(signTexture('TROPICAL', '#1a1a2e', '#ff5a8a', false), 3.2, 1.0, -47, 2.4, -120.92, 0);
+signPlane(scribTex, 2.2, 1.1, -60, 1.9, -116.97, Math.PI);
+alleyLamp(-66, -119); wallBulb(-40, 3.0, -120.9);
+// Lane 2: z -101..-97 (seg 1 south gap).
+box(38, 0.05, 4, 0x23232a, -56, 0.025, -99);
+dumpster(-58, -97.7);
+trashBag(-55.5, -98.6); trashBag(-60.2, -98.2, 0.9); trashBag(-44, -100.3);
+cardboard(-47, -100.5, 0.9, 0.5); cardboard(-46.2, -100.6, 0.6, 0.1);
+puddle(-64, -99, 2.4, 1.2);
+wallPipe(-47, -100.85, 4.0);
+acUnit(-56, -97.3);
+signPlane(signTexture('TROPICAL', '#1a1a2e', '#ff5a8a', false), 3.2, 1.0, -44, 2.4, -100.82, 0);
+signPlane(scribTex, 2.2, 1.1, -48, 1.9, -97.07, Math.PI);
+alleyLamp(-68, -99); wallBulb(-40, 3.0, -100.8);
+// Lane 3: z 67.63..71.63 (seg 3 north gap).
+box(38, 0.05, 4, 0x23232a, -56, 0.025, 69.63);
+dumpster(-42, 71.1);
+trashBag(-44.5, 70.2); trashBag(-39.8, 68.6, 0.85); trashBag(-57, 70.5);
+cardboard(-49, 68.2, 1, -0.3); cardboard(-49.8, 68.1, 0.7, 0.4);
+puddle(-54, 69.63, 2.6, 1.3);
+wallPipe(-47, 67.85, 4.2);
+acUnit(-58, 71.33);
+signPlane(signTexture('TROPICAL', '#1a1a2e', '#ff5a8a', false), 3.2, 1.0, -46, 2.4, 67.71, 0);
+signPlane(scribTex, 2.2, 1.1, -60, 1.9, 71.46, Math.PI);
+alleyLamp(-66, 69.63); wallBulb(-40, 3.0, 67.75);
+// Lane 4: z 104..108 (seg 3 south gap).
+box(38, 0.05, 4, 0x23232a, -56, 0.025, 106);
+dumpster(-59, 107.35);
+trashBag(-56.5, 106.6); trashBag(-61.5, 107.2, 0.9); trashBag(-43, 105.2);
+cardboard(-46, 104.5, 1, 0.2); cardboard(-45.2, 104.4, 0.65, -0.4);
+puddle(-52, 106, 2.4, 1.2);
+wallPipe(-50, 104.25, 3.8);
+acUnit(-56, 107.7);
+signPlane(signTexture('TROPICAL', '#1a1a2e', '#ff5a8a', false), 3.2, 1.0, -48, 2.4, 104.18, 0);
+signPlane(scribTex, 2.2, 1.1, -44, 1.9, 107.93, Math.PI);
+alleyLamp(-67, 106); wallBulb(-40, 3.0, 104.2);
+
 // ---- The five west districts ----
 // 1) Pelabuhan: containers, warehouse, crane, cargo ship offshore.
 var contCols = [0xd82a2a, 0x2a6ad8, 0x37b24a, 0xffd23f, 0x8a5aff];
