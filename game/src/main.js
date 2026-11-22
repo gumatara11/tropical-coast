@@ -16,6 +16,7 @@ window.__tc = {
   get kmh() { return Math.round(Math.abs(speed) * 3.6); },
   get onFoot() { return onFoot; }, get rideMode() { return rideMode; },
   get wanted() { return wanted; }, get health() { return health; },
+  get armour() { return armour; },
   get money() { return money; }, get missionIdx() { return missionIdx; },
   get missionStage() { return missionStage; },
   get talking() { return talking; },

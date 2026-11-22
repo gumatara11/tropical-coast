@@ -48,6 +48,9 @@ function applyCoverSpot() {
     else { px = 13.5; pz = -54; carX = 12.5; carZ = -55.5; carHeading = -Math.PI / 2 + 0.15; }
   }
 }
+// Round 18: a car that just hit the player brakes hard for a moment
+// instead of driving on through the body. brakeK is its speed factor.
+function brakeK(o) { return o.userData.brakeT > 0 ? 0.25 : 1; }
 function frame() {
   requestAnimationFrame(frame);
   var dt = Math.min(clock.getDelta(), 0.05); t += dt;
@@ -103,22 +106,25 @@ function frame() {
   // Traffic flow (z-flow on the coast road and avenues, x-flow on the
   // cross streets, bikes like cars) and police patrol / chase.
   traffic.forEach(function (tr, i) {
-    tr.position.z += dt * (6 + i);
+    tr.position.z += dt * (6 + i) * brakeK(tr);
     if (tr.position.z > 210) tr.position.z = -210;
   });
   aveTraffic.forEach(function (tr, i) {
-    tr.position.z += dt * (5 + i * 2);
+    tr.position.z += dt * (5 + i * 2) * brakeK(tr);
     if (tr.position.z > 210) tr.position.z = -210;
   });
   ave2Traffic.forEach(function (tr, i) {
-    tr.position.z += dt * (5 + i * 2);
+    tr.position.z += dt * (5 + i * 2) * brakeK(tr);
     if (tr.position.z > 210) tr.position.z = -210;
   });
-  crossTraffic[0].position.x += dt * 8; if (crossTraffic[0].position.x > 8) crossTraffic[0].position.x = -58;
-  crossTraffic[1].position.x -= dt * 8; if (crossTraffic[1].position.x < -58) crossTraffic[1].position.x = 8;
+  crossTraffic[0].position.x += dt * 8 * brakeK(crossTraffic[0]); if (crossTraffic[0].position.x > 8) crossTraffic[0].position.x = -58;
+  crossTraffic[1].position.x -= dt * 8 * brakeK(crossTraffic[1]); if (crossTraffic[1].position.x < -58) crossTraffic[1].position.x = 8;
   bikeTraffic.forEach(function (tr, i) {
-    tr.position.z += dt * (7 + i * 2);
+    tr.position.z += dt * (7 + i * 2) * brakeK(tr);
     if (tr.position.z > 210) tr.position.z = -210;
+  });
+  [traffic, aveTraffic, ave2Traffic, crossTraffic, bikeTraffic].forEach(function (list) {
+    list.forEach(function (o) { if (o.userData.brakeT > 0) o.userData.brakeT -= dt; });
   });
   var chaseK = wanted > 0 ? 2.4 : 1.2;
   if (onFoot) {
@@ -143,7 +149,8 @@ function frame() {
       pu.rotation.y = heading;
     } else { pu.position.z += dt * 5; if (pu.position.z > 210) pu.position.z = -210; }
   });
-  taxi.position.z += dt * 7; if (taxi.position.z > 210) taxi.position.z = -210;
+  taxi.position.z += dt * 7 * brakeK(taxi); if (taxi.position.z > 210) taxi.position.z = -210;
+  if (taxi.userData.brakeT > 0) taxi.userData.brakeT -= dt;
   if (cover && screen === 'drive') {
     police.position.set(-4, 0, pz - 14); police.rotation.y = heading;
     police2.position.set(3.5, 0, pz - 28); police2.rotation.y = heading;
@@ -204,25 +211,70 @@ function frame() {
   var kmh = 0;
   if (playing || cover) {
     if (onFoot) {
-      var mv = 0, str = 0;
-      if (keys.KeyW || keys.ArrowUp) mv = 1;
-      if (keys.KeyS || keys.ArrowDown) mv = -0.5;
+      // Round 18 — smooth on-foot movement: footSpeed eases toward the
+      // target (5 m/s forward, 2.5 m/s back) instead of snapping to full
+      // speed and dead-stopping, and the turn rate eases the same way.
+      // walkPhase advances with SIGNED distance, so the leg swing
+      // follows the feet — backward steps swing backward, no moonwalk.
+      var mvT = 0, str = 0;
+      if (keys.KeyW || keys.ArrowUp) mvT = 1;
+      if (keys.KeyS || keys.ArrowDown) mvT = -0.5;
       if (keys.KeyA || keys.ArrowLeft) str = 1;
       if (keys.KeyD || keys.ArrowRight) str = -1;
-      heading += str * dt * 2.2;
+      var targetSpeed = mvT * 5;
+      var accel = Math.abs(targetSpeed) > Math.abs(footSpeed) ? 14 : 18;
+      footSpeed += Math.max(-accel * dt, Math.min(accel * dt, targetSpeed - footSpeed));
+      turnVel += Math.max(-6 * dt, Math.min(6 * dt, str * 2.2 - turnVel));
+      heading += turnVel * dt;
       // Movement follows the facing direction (-sin h, -cos h), so
       // walking east/west no longer goes backwards against the facing.
-      var npx = px - Math.sin(heading) * mv * dt * 5;
-      var npz = pz - Math.cos(heading) * mv * dt * 5;
-      if (walkable(npx, npz)) { px = npx; pz = npz; }
+      var step = footSpeed * dt;
+      var npx = px - Math.sin(heading) * step;
+      var npz = pz - Math.cos(heading) * step;
+      // Solid parked cars (round 18): the player coupe and the two
+      // parked cars on Avenue 1 are bodies now — walking into one stops
+      // at its flank instead of passing through. Only blocks ENTRY, so
+      // a player who spawns inside (dismount) can always walk back out.
+      var blocked = false;
+      [[carX, carZ, carHeading], [parked1.position.x, parked1.position.z, parked1.rotation.y], [parked2.position.x, parked2.position.z, parked2.rotation.y]].forEach(function (c) {
+        var dx = npx - c[0], dz = npz - c[1];
+        var lf = -dx * Math.sin(c[2]) - dz * Math.cos(c[2]);
+        var ls = -dx * Math.cos(c[2]) + dz * Math.sin(c[2]);
+        var dx0 = px - c[0], dz0 = pz - c[1];
+        var lf0 = -dx0 * Math.sin(c[2]) - dz0 * Math.cos(c[2]);
+        var ls0 = -dx0 * Math.cos(c[2]) + dz0 * Math.sin(c[2]);
+        if (Math.abs(lf) < 2.9 && Math.abs(ls) < 1.5 && !(Math.abs(lf0) < 2.9 && Math.abs(ls0) < 1.5)) blocked = true;
+      });
+      if (blocked) { npx = px; npz = pz; footSpeed = 0; }
+      if (walkable(npx, npz)) { px = npx; pz = npz; } else footSpeed = 0;
+      walkPhase += step * 2.2;
+      // Traffic hits the player on foot (round 18): a car no longer
+      // passes through the body. On contact the player is knocked clear
+      // of the car's path, takes damage through the normal armour/health
+      // path, the car brakes hard, and the police notice.
+      if (playing && !cover) {
+        var hitCar = null;
+        traffic.concat(aveTraffic).concat(ave2Traffic).concat(crossTraffic).concat(bikeTraffic).concat([taxi, police, police2, police3, police4, police5, police6]).forEach(function (o) {
+          if (!hitCar && Math.hypot(o.position.x - px, o.position.z - pz) < 2.6) hitCar = o;
+        });
+        if (hitCar && sparkT <= 0) {
+          sparkT = 0.5; panicT = 1.2; raiseWanted(1); damagePlayer(10); playThud();
+          var kdx = px - hitCar.position.x, kdz = pz - hitCar.position.z;
+          var kl = Math.hypot(kdx, kdz) || 1;
+          var kpx = px + (kdx / kl) * 1.6, kpz = pz + (kdz / kl) * 1.6;
+          if (walkable(kpx, kpz)) { px = kpx; pz = kpz; }
+          footSpeed = 0;
+          hitCar.userData.brakeT = 0.8;
+        }
+      }
       pz = Math.max(-205, Math.min(205, pz));
       gito.position.set(px, groundY(px, pz), pz);
       gito.rotation.y = heading + Math.PI;
       // A living idle, not a statue: one foot slightly forward, one knee
       // bent, arms hanging asymmetrically, head tilted a touch, soft
       // breathing. While walking, the plain walk cycle.
-      var idle = mv === 0;
-      var wp = mv !== 0 ? Math.sin(t * 10) * 0.5 : 0;
+      var idle = Math.abs(footSpeed) < 0.1;
+      var wp = Math.sin(walkPhase) * 0.5 * Math.min(1, Math.abs(footSpeed) / 2);
       gito.userData.legL.rotation.x = idle ? -0.05 : wp; gito.userData.legR.rotation.x = idle ? 0.03 : -wp;
       gito.userData.armL.rotation.x = idle ? -0.04 : -wp; gito.userData.armR.rotation.x = idle ? 0.05 : wp;
       // Idle arms angle OUTWARD (0.30 rad) — pivot at the shoulder so
@@ -416,7 +468,7 @@ function frame() {
   // Positions the camera for the current screen / cover spot, then
   // re-scales the enter arrow by camera distance (overriding the
   // player-distance scale above) so it never fills the frame up close.
-  directCamera();
+  directCamera(dt);
   if (showFps) { window.__fps = Math.round(1 / Math.max(dt, 0.001)); }
   renderer.render(scene, cam);
 }
@@ -424,7 +476,7 @@ function frame() {
 // Camera director: one camera position per screen and cover spot, in the
 // same priority order as the old game. Cover branches also stage the
 // rider pose (stageSeat) and hide nearby NPCs so the frame stays clean.
-function directCamera() {
+function directCamera(dt) {
   if (screen === 'splash') {
     cam.position.copy(splashCamPos); cam.lookAt(splashCamLook);
   } else if (screen === 'menu') {
@@ -650,8 +702,24 @@ function directCamera() {
     // and looks along the heading, so it stays centred at any heading.
     if (!onFoot && rideMode !== 'car') camLat = 0;
     var cx = px + Math.sin(heading) * camDist, cz = pz + Math.cos(heading) * camDist; // behind = (-movement) = (+sin h, +cos h)
-    cam.position.set(cx + camLat + (sparkT > 0 ? (Math.random() - 0.5) * 0.3 : 0), camH, cz);
-    if (onFoot) cam.lookAt(px, 1.6, pz - 2);
+    var tx = cx + camLat + (sparkT > 0 ? (Math.random() - 0.5) * 0.3 : 0), ty = camH, tz = cz;
+    if (cover) cam.position.set(tx, ty, tz);
+    else {
+      // Round 18: in real gameplay the camera eases toward its slot
+      // instead of snapping to it every frame — the ride feels smooth,
+      // not bolted on. Cover shots keep the exact pinned position.
+      var ck = 1 - Math.exp(-10 * dt);
+      cam.position.x += (tx - cam.position.x) * ck;
+      cam.position.y += (ty - cam.position.y) * ck;
+      cam.position.z += (tz - cam.position.z) * ck;
+    }
+    if (onFoot) {
+      // Round 18: look ahead of the player in the facing direction —
+      // the old fixed (px, 1.6, pz-2) point shoved the player to the
+      // frame edge whenever he faced south. Cover keeps the old point.
+      if (cover) cam.lookAt(px, 1.6, pz - 2);
+      else cam.lookAt(px - Math.sin(heading) * 2, 1.6, pz - Math.cos(heading) * 2);
+    }
     else cam.lookAt(px - Math.sin(heading) * 10, 1.5, pz - Math.cos(heading) * 10);
   }
   // The enter arrow's glow cone looms huge when the follow camera is close

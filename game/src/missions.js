@@ -1,6 +1,10 @@
 // Gameplay state, entering vehicles, missions and dialogue.
 // All dialogue text is locked — it is presented, never edited.
 var onFoot = true, speed = 0, px = -2.5, pz = 12, heading = 0, steer = 0;
+// Round 18: smoothed on-foot movement state — footSpeed eases toward the
+// target instead of snapping, walkPhase advances with signed distance so
+// the leg swing follows the feet, turnVel eases the turn rate.
+var footSpeed = 0, walkPhase = 0, turnVel = 0;
 var carX = 0, carZ = 10, carHeading = 0;
 // Which vehicle Gito is in: 'none' on foot, 'car' in the yellow coupe,
 // 'boat' / 'jetski' on the water, 'bike' on a parked bike.
