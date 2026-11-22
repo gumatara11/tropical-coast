@@ -30,16 +30,22 @@ function makeHand(skinM, side) {
   th.scale.set(1, 1.4, 0.8); th.position.set(-side * 0.058, -0.036, 0.014); h.add(th);
   return h;
 }
-// A shoe: a wide elliptical upper (not a ball, not a box) on a thin light
-// sole, with three thin white lace strips following the upper's curve.
+// A shoe that reads as a shoe at 150px: an elliptical upper with a
+// rounded toe cap, a WIDE flat light sole that sticks out past the upper
+// on every side (the sole is what makes the black mass read as footwear),
+// a light heel block, and lace strips sitting on the upper's surface.
 function makeShoe(color, s) {
   var g = new THREE.Group();
   var m = new THREE.MeshLambertMaterial({ color: color });
   var body = new THREE.Mesh(new THREE.SphereGeometry(0.075 * s, 16, 12), m);
-  body.scale.set(1.22, 0.62, 1.95); body.position.set(0, -0.39, 0.02); g.add(body);
-  var sole = new THREE.Mesh(new THREE.SphereGeometry(0.075 * s, 16, 12), new THREE.MeshLambertMaterial({ color: 0xffffff }));
-  sole.scale.set(1.05, 0.38, 1.9); sole.position.set(0, -0.425, 0.02); g.add(sole);
-  [[-0.352, 0.06], [-0.358, 0.10], [-0.370, 0.14]].forEach(function (lz) {
+  body.scale.set(1.18, 0.55, 1.80); body.position.set(0, -0.385, 0.01); g.add(body);
+  var toe = new THREE.Mesh(new THREE.SphereGeometry(0.055 * s, 14, 10), m);
+  toe.scale.set(1.0, 0.55, 1.1); toe.position.set(0, -0.40, 0.115); g.add(toe);
+  var sole = new THREE.Mesh(new THREE.SphereGeometry(0.075 * s, 16, 12), new THREE.MeshLambertMaterial({ color: 0xeeeeee }));
+  sole.scale.set(1.28, 0.22, 2.0); sole.position.set(0, -0.44, 0.02); g.add(sole);
+  var heel = new THREE.Mesh(new THREE.BoxGeometry(0.13 * s, 0.05 * s, 0.05 * s), new THREE.MeshLambertMaterial({ color: 0xdddddd }));
+  heel.position.set(0, -0.425, -0.135); g.add(heel);
+  [[-0.331, 0.05], [-0.335, 0.09], [-0.345, 0.13]].forEach(function (lz) {
     var lace = new THREE.Mesh(new THREE.BoxGeometry(0.04 * s, 0.008 * s, 0.018 * s), new THREE.MeshLambertMaterial({ color: 0xf5f5f5 }));
     lace.position.set(0, lz[0], lz[1]); g.add(lace);
   });
@@ -54,19 +60,19 @@ function makeShoe(color, s) {
 // sunglasses), headGlasses (Luna's tortoiseshell pair resting on her head),
 // earrings (gold hoops), smile.
 function makeHead(skinM, hairM, opts) {
-  var head = new THREE.Group(); head.position.y = 1.64;
+  var head = new THREE.Group(); head.position.y = 1.74;
   if (TEX['hair']) { hairM.map = TEX['hair']; hairM.needsUpdate = true; }
-  var skull = new THREE.Mesh(new THREE.SphereGeometry(0.125, 20, 16), skinM);
+  var skull = new THREE.Mesh(new THREE.SphereGeometry(0.115, 20, 16), skinM);
   skull.scale.set(1, 1.15, 1.0); head.add(skull);
   var jaw = new THREE.Mesh(new THREE.SphereGeometry(0.085, 14, 12), skinM);
   jaw.scale.set(0.82, 0.62, 0.88); jaw.position.set(0, -0.075, 0.015); head.add(jaw);
-  var hair = new THREE.Mesh(new THREE.SphereGeometry(0.15, 20, 16, 0, Math.PI * 2, 0, Math.PI * 0.40), hairM);
-  hair.scale.set(1.08, 1.22, 1.14); hair.position.set(0, 0.025, -0.015); head.add(hair);
+  var hair = new THREE.Mesh(new THREE.SphereGeometry(0.138, 20, 16, 0, Math.PI * 2, 0, Math.PI * 0.45), hairM);
+  hair.scale.set(1.04, 1.12, 1.08); hair.position.set(0, 0.02, -0.015); head.add(hair);
   var nape = new THREE.Mesh(new THREE.SphereGeometry(0.10, 14, 12), hairM);
-  nape.scale.set(1.0, 0.75, 0.55); nape.position.set(0, -0.045, -0.06); head.add(nape);
+  nape.scale.set(1.0, 0.55, 0.55); nape.position.set(0, -0.02, -0.06); head.add(nape);
   [-0.055, -0.018, 0.018, 0.055].forEach(function (lx) {
-    var lock = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.012, 0.05, 6), hairM);
-    lock.position.set(lx, -0.10, -0.11); lock.rotation.x = 0.15; head.add(lock);
+    var lock = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.012, 0.04, 6), hairM);
+    lock.position.set(lx, -0.08, -0.11); lock.rotation.x = 0.15; head.add(lock);
   });
   var crown = new THREE.Mesh(new THREE.SphereGeometry(0.105, 14, 12), hairM);
   crown.scale.set(1.35, 0.75, 1.15); crown.position.set(0.02, 0.11, -0.03); head.add(crown);
@@ -182,8 +188,8 @@ function person(shirt, pants, female, opts) {
   [[0.160, 0.06], [0.172, 0.02], [0.178, -0.02], [0.170, -0.06]].forEach(function (p) { hemPts.push(new THREE.Vector2(p[0], p[1])); });
   var hem = new THREE.Mesh(new THREE.LatheGeometry(hemPts, 20), shirtM);
   hem.position.y = 0.98; hem.scale.z = 0.78; g.add(hem);
-  var neck = new THREE.Mesh(new THREE.CapsuleGeometry(0.068, 0.08, 4, 12), skin);
-  neck.position.y = 1.52; g.add(neck);
+  var neck = new THREE.Mesh(new THREE.CapsuleGeometry(0.055, 0.16, 4, 12), skin);
+  neck.position.y = 1.60; g.add(neck);
   var armL = new THREE.Group(), armR = new THREE.Group();
   armL.position.set(-0.15, 1.44, 0); armR.position.set(0.15, 1.44, 0);
   armL.rotation.z = 0.01; armR.rotation.z = -0.01;
@@ -196,7 +202,7 @@ function person(shirt, pants, female, opts) {
     [[0.088, 0.00], [0.090, -0.02], [0.088, -0.06], [0.084, -0.12], [0.078, -0.20]].forEach(function (p) { slPts.push(new THREE.Vector2(p[0], p[1])); });
     var sleeve = new THREE.Mesh(new THREE.LatheGeometry(slPts, 20), female ? skin : shirtM);
     sleeve.position.y = -0.03; ag.add(sleeve);
-    var elbowBend = -0.25 + (rnd() - 0.5) * 0.12;
+    var elbowBend = -0.45 + (rnd() - 0.5) * 0.12;
     if (opts && opts.flat) elbowBend = 0;
     var elbow = new THREE.Group(); elbow.position.y = -0.30;
     elbow.rotation.x = elbowBend; elbow.rotation.z = side * 0.03; ag.add(elbow);
@@ -219,6 +225,8 @@ function person(shirt, pants, female, opts) {
   [[0.165, 0.10], [0.178, 0.04], [0.182, -0.04], [0.172, -0.10], [0.158, -0.14]].forEach(function (p) { hipPts.push(new THREE.Vector2(p[0], p[1])); });
   var pelvis = new THREE.Mesh(new THREE.LatheGeometry(hipPts, 20), pantsM);
   pelvis.position.y = 0.92; pelvis.scale.z = 0.80; g.add(pelvis);
+  var traps = new THREE.Mesh(new THREE.SphereGeometry(0.13, 16, 12), female ? skin : shirtM);
+  traps.scale.set(1.9, 0.45, 0.85); traps.position.y = 1.47; g.add(traps);
   g.userData = { armL: armL, armR: armR, legL: legL, legR: legR, head: head };
   g.traverse(function (o) { if (o.isMesh) o.castShadow = true; });
   return g;
@@ -262,8 +270,8 @@ var gito = new THREE.Group();
   [[0.160, 0.06], [0.172, 0.02], [0.178, -0.02], [0.170, -0.06]].forEach(function (p) { hemPts.push(new THREE.Vector2(p[0], p[1])); });
   var hem = new THREE.Mesh(new THREE.LatheGeometry(hemPts, 20), mShirt);
   hem.position.y = 0.98; hem.scale.z = 0.78; gito.add(hem);
-  var neck = new THREE.Mesh(new THREE.CapsuleGeometry(0.068, 0.08, 4, 12), mSkin);
-  neck.position.y = 1.52; gito.add(neck);
+  var neck = new THREE.Mesh(new THREE.CapsuleGeometry(0.055, 0.16, 4, 12), mSkin);
+  neck.position.y = 1.60; gito.add(neck);
   var collarPts = [];
   [[0.088, 0.035], [0.10, 0.01], [0.10, -0.01], [0.088, -0.035]].forEach(function (p) { collarPts.push(new THREE.Vector2(p[0], p[1])); });
   var collar = new THREE.Mesh(new THREE.LatheGeometry(collarPts, 16), new THREE.MeshLambertMaterial({ color: 0xf5f5f5 }));
@@ -282,7 +290,7 @@ var gito = new THREE.Group();
     var cuffPts = [];
     [[0.080, 0.015], [0.084, 0.008], [0.084, -0.008], [0.080, -0.015]].forEach(function (p) { cuffPts.push(new THREE.Vector2(p[0], p[1])); });
     var cuff = new THREE.Mesh(new THREE.LatheGeometry(cuffPts, 16), new THREE.MeshLambertMaterial({ color: 0xf5f5f5 })); cuff.position.y = -0.22; ag.add(cuff);
-    var elbow = new THREE.Group(); elbow.position.y = -0.30; elbow.rotation.x = -0.25; elbow.rotation.z = side * 0.03; ag.add(elbow);
+    var elbow = new THREE.Group(); elbow.position.y = -0.30; elbow.rotation.x = -0.45; elbow.rotation.z = -side * 0.12; ag.add(elbow);
     var elbowBall = new THREE.Mesh(new THREE.SphereGeometry(0.024, 12, 10), mSkin);
     elbowBall.scale.set(1, 0.6, 0.75);
     elbow.add(elbowBall);
@@ -301,6 +309,8 @@ var gito = new THREE.Group();
   [[0.165, 0.10], [0.178, 0.04], [0.182, -0.04], [0.172, -0.10], [0.158, -0.14]].forEach(function (p) { hipPts.push(new THREE.Vector2(p[0], p[1])); });
   var pelvis = new THREE.Mesh(new THREE.LatheGeometry(hipPts, 20), mPants);
   pelvis.position.y = 0.92; pelvis.scale.z = 0.80; gito.add(pelvis);
+  var traps = new THREE.Mesh(new THREE.SphereGeometry(0.13, 16, 12), mShirt);
+  traps.scale.set(1.9, 0.45, 0.85); traps.position.y = 1.47; gito.add(traps);
   gito.userData = { armL: armL, armR: armR, legL: legL, legR: legR, head: head };
   gito.traverse(function (o) { if (o.isMesh) o.castShadow = true; });
 })();
@@ -325,8 +335,8 @@ var woman = new THREE.Group();
     dome.position.set(sx, 1.41, 0);
     woman.add(dome);
   });
-  var wNeck = new THREE.Mesh(new THREE.CapsuleGeometry(0.066, 0.08, 4, 12), wSkin);
-  wNeck.position.y = 1.52; woman.add(wNeck);
+  var wNeck = new THREE.Mesh(new THREE.CapsuleGeometry(0.055, 0.16, 4, 12), wSkin);
+  wNeck.position.y = 1.60; woman.add(wNeck);
   var wHairM = new THREE.MeshLambertMaterial({ color: 0x3a2a1a });
   var head = makeHead(wSkin, wHairM, { eyes: true, headGlasses: true, earrings: true, smile: true });
   head.scale.set(0.95, 0.95, 0.95);
@@ -358,7 +368,7 @@ var woman = new THREE.Group();
   woman.add(legL); woman.add(legR);
   var armL = new THREE.Group(), armR = new THREE.Group();
   armL.position.set(-0.15, 1.44, 0); armR.position.set(0.15, 1.44, 0);
-  armL.rotation.z = -0.30; armR.rotation.z = 0.30;
+  armL.rotation.z = -0.20; armR.rotation.z = 0.20;
   [[armL, -1], [armR, 1]].forEach(function (pair) {
     var ag = pair[0], side = pair[1];
     var shoulder = new THREE.Mesh(new THREE.SphereGeometry(0.085, 16, 12), wSkin);
@@ -368,7 +378,7 @@ var woman = new THREE.Group();
     [[0.088, 0.17], [0.086, -0.10], [0.080, -0.15], [0.074, -0.17]].forEach(function (p) { upperPts.push(new THREE.Vector2(p[0], p[1])); });
     var upper = new THREE.Mesh(new THREE.LatheGeometry(upperPts, 20), wSkin);
     upper.position.y = -0.13; ag.add(upper);
-    var elbow = new THREE.Group(); elbow.position.y = -0.30; elbow.rotation.x = -0.35; elbow.rotation.z = side * 0.03; ag.add(elbow);
+    var elbow = new THREE.Group(); elbow.position.y = -0.30; elbow.rotation.x = -0.50; elbow.rotation.z = -side * 0.12; ag.add(elbow);
     var elbowBall = new THREE.Mesh(new THREE.SphereGeometry(0.024, 12, 10), wSkin);
     elbowBall.scale.set(1, 0.6, 0.75);
     elbow.add(elbowBall);
@@ -381,6 +391,8 @@ var woman = new THREE.Group();
     var hand = makeHand(wSkin, side); hand.position.y = -0.33; hand.rotation.x = -0.15; elbow.add(hand);
   });
   woman.add(armL); woman.add(armR);
+  var wTraps = new THREE.Mesh(new THREE.SphereGeometry(0.13, 16, 12), wSkin);
+  wTraps.scale.set(1.9, 0.45, 0.85); wTraps.position.y = 1.47; woman.add(wTraps);
   legL.rotation.x = -0.04; legR.rotation.x = 0.02;
   legR.children[1].rotation.x = 0.07;
   armL.rotation.x = -0.04; armR.rotation.x = 0.03;
