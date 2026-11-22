@@ -737,38 +737,36 @@ function makeBike(color, x, z, heading, type) {
       var hubCap = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.16, 10), darkM);
       hubCap.rotation.z = Math.PI / 2; hubCap.position.set(0, 0.39, wz); g.add(hubCap);
     });
-    // PCJ-600 body: ONE continuous side profile (nose → screen base →
-    // tank peak → seat base → tail tip), bottom edge high in the middle so
-    // the wheels show below it. Separate boxes read as crates; one flowing
-    // extrude reads as a sport bike.
+    // PCJ-600 body: ONE continuous ANGULAR side profile — pointed low
+    // nose → steep fairing face → screen base → stepped tank peak →
+    // seat step → pointed tail. Sharp corners, almost no bevel: the
+    // smooth bevelled profile read as a round red blob, not a sport bike.
     var fp = new THREE.Shape();
-    fp.moveTo(-0.95, 0.52);
-    fp.lineTo(-0.90, 0.72);
-    fp.lineTo(-0.62, 0.82);
-    fp.lineTo(-0.38, 0.86);
-    fp.lineTo(-0.20, 0.88);
-    fp.lineTo(0.05, 0.98);
-    fp.lineTo(0.30, 0.94);
-    fp.lineTo(0.50, 0.90);
-    fp.lineTo(0.85, 0.90);
-    fp.lineTo(1.10, 0.92);
-    fp.lineTo(1.12, 0.80);
-    fp.lineTo(1.05, 0.62);
-    fp.lineTo(0.45, 0.58);
-    fp.lineTo(0.10, 0.62);
-    fp.lineTo(-0.30, 0.60);
-    fp.lineTo(-0.55, 0.50);
+    fp.moveTo(-1.12, 0.44);
+    fp.lineTo(-1.08, 0.64);
+    fp.lineTo(-0.78, 0.82);
+    fp.lineTo(-0.55, 0.88);
+    fp.lineTo(-0.30, 0.86);
+    fp.lineTo(-0.10, 0.92);
+    fp.lineTo(0.15, 0.94);
+    fp.lineTo(0.35, 0.88);
+    fp.lineTo(0.60, 0.88);
+    fp.lineTo(0.95, 0.90);
+    fp.lineTo(1.14, 0.86);
+    fp.lineTo(1.10, 0.70);
+    fp.lineTo(0.55, 0.60);
+    fp.lineTo(0.10, 0.58);
+    fp.lineTo(-0.35, 0.56);
+    fp.lineTo(-0.70, 0.52);
     fp.closePath();
-    var fairGeo = new THREE.ExtrudeGeometry(fp, { depth: 0.26, bevelEnabled: true, bevelThickness: 0.05, bevelSize: 0.05, bevelSegments: 2, curveSegments: 8 });
+    var fairGeo = new THREE.ExtrudeGeometry(fp, { depth: 0.24, bevelEnabled: true, bevelThickness: 0.02, bevelSize: 0.02, bevelSegments: 1, curveSegments: 4 });
     var fairing = new THREE.Mesh(fairGeo, bodyM);
     fairing.rotation.y = -Math.PI / 2; fairing.position.x = 0.13; g.add(fairing);
+    // Tank: TALL rounded hump rising well above the fairing top line so
+    // it reads as a separate tank — the flat one merged into the fairing.
     var tankBall = new THREE.Mesh(new THREE.SphereGeometry(0.5, 14, 10), bodyM);
-    tankBall.scale.set(0.48, 0.22, 0.68); tankBall.position.set(0, 0.96, 0.02); g.add(tankBall);
-    var tankCap = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.02, 0.12), darkM); tankCap.position.set(0, 1.08, 0.0); g.add(tankCap);
-    [-1, 1].forEach(function (sx) {
-      var fairBulge = new THREE.Mesh(new THREE.SphereGeometry(0.5, 12, 10), bodyM);
-      fairBulge.scale.set(0.20, 0.44, 0.70); fairBulge.position.set(sx * 0.14, 0.70, -0.45); g.add(fairBulge);
-    });
+    tankBall.scale.set(0.40, 0.20, 0.45); tankBall.position.set(0, 1.00, 0.0); g.add(tankBall);
+    var tankCap = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.02, 0.12), darkM); tankCap.position.set(0, 1.10, 0.0); g.add(tankCap);
     // Compact dark engine block only — the big grey slab is gone, so the
     // space between the wheels stays open and the wheels read.
     var engine = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.24, 0.45), new THREE.MeshLambertMaterial({ color: 0x3a3a3a }));
@@ -781,25 +779,43 @@ function makeBike(color, x, z, heading, type) {
       var cover = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 0.04, 12), chromeM);
       cover.rotation.z = Math.PI / 2; cover.position.set(cx, 0.46, 0.05); g.add(cover);
     });
-    var fender = new THREE.Mesh(new THREE.TorusGeometry(0.40, 0.05, 8, 14, Math.PI * 0.7), bodyM);
+    var fender = new THREE.Mesh(new THREE.TorusGeometry(0.44, 0.06, 8, 14, Math.PI * 0.7), bodyM);
     fender.rotation.y = Math.PI / 2; fender.position.set(0, 0.39, -0.8); g.add(fender);
-    // Tall clear windscreen rising above the fairing, like the SA PCJ-600.
-    var screen = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.34, 0.03), new THREE.MeshBasicMaterial({ color: 0xd8e8f8 })); screen.position.set(0, 1.02, -0.42); screen.rotation.x = -0.35; g.add(screen);
+    // Tall clear windscreen rising well above the fairing, like the SA
+    // PCJ-600 — a curved bubble lens, TRANSPARENT so the bars show
+    // through it. (Opaque pale read as a solid white sail, not glass.)
+    // Dark base strip anchors it to the fairing.
+    var screen = new THREE.Mesh(new THREE.SphereGeometry(0.5, 14, 10), new THREE.MeshBasicMaterial({ color: 0xcfe8ff, transparent: true, opacity: 0.32, depthWrite: false })); screen.scale.set(0.46, 0.50, 0.16); screen.position.set(0, 1.10, -0.50); screen.rotation.x = -0.30; g.add(screen);
+    var screenBase = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.05, 0.04), darkM); screenBase.position.set(0, 0.90, -0.50); screenBase.rotation.x = -0.45; g.add(screenBase);
+    // Stepped seat: passenger seat clearly higher than the rider seat.
     var seat = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.09, 0.42), darkM); seat.position.set(0, 0.945, 0.55); g.add(seat);
-    var seat2 = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.09, 0.34), darkM); seat2.position.set(0, 0.975, 0.88); g.add(seat2);
+    var seat2 = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.09, 0.34), darkM); seat2.position.set(0, 0.99, 0.88); g.add(seat2);
     var tailCowl = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.07, 0.20), bodyM); tailCowl.position.set(0, 0.945, 1.05); g.add(tailCowl);
-    var bar = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.65, 8), darkM); bar.rotation.z = Math.PI / 2; bar.position.set(0, 0.98, -0.42); g.add(bar);
-    [-0.11, 0.11].forEach(function (fx) {
-      var fork = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.85, 6), chromeM);
-      fork.position.set(fx, 0.68, -0.6); fork.rotation.x = 0.5; g.add(fork);
+    // Pointed tail tip, like the SA PCJ-600.
+    var tailTip = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.20, 4), bodyM); tailTip.rotation.x = Math.PI / 2; tailTip.scale.set(1, 1, 0.55); tailTip.position.set(0, 0.94, 1.20); g.add(tailTip);
+    // Handlebar with grips + stalk mirrors, like the SA PCJ-600.
+    var bar = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.65, 8), darkM); bar.rotation.z = Math.PI / 2; bar.position.set(0, 1.00, -0.42); g.add(bar);
+    [-1, 1].forEach(function (gx) {
+      var grip = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.12, 8), darkM); grip.rotation.z = Math.PI / 2; grip.position.set(gx * 0.30, 1.00, -0.42); g.add(grip);
+      var stalk = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.22, 6), chromeM); stalk.position.set(gx * 0.26, 1.12, -0.44); stalk.rotation.z = -gx * 0.5; g.add(stalk);
+      var mirror = new THREE.Mesh(new THREE.SphereGeometry(0.08, 10, 8), chromeM); mirror.scale.set(1, 1, 0.4); mirror.position.set(gx * 0.32, 1.22, -0.44); g.add(mirror);
     });
-    // TWO round headlamps, big and bright, set INTO the fairing nose so
-    // they read from the front at any distance.
+    // Chrome front forks, thicker and outside the fairing sides so they
+    // read — the old thin ones hid behind the fairing bulges.
+    [-0.14, 0.14].forEach(function (fx) {
+      var fork = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.90, 6), chromeM);
+      fork.position.set(fx, 0.68, -0.62); fork.rotation.x = 0.5; g.add(fork);
+    });
+    // TWO round headlamps, side by side on the nose — far enough apart
+    // to read as a PAIR (the close pair merged into one blob). Dark
+    // backing just a rim behind each lamp, like the SA PCJ-600.
     [-0.11, 0.11].forEach(function (lx) {
-      var headlamp = new THREE.Mesh(new THREE.SphereGeometry(0.11, 12, 10), new THREE.MeshBasicMaterial({ color: 0xfff2b0 }));
-      headlamp.scale.set(1, 1, 0.6); headlamp.position.set(lx, 0.72, -0.93); g.add(headlamp);
-      var headRing = new THREE.Mesh(new THREE.TorusGeometry(0.115, 0.015, 8, 16), chromeM);
-      headRing.position.set(lx, 0.72, -0.99); g.add(headRing);
+      var lampBack = new THREE.Mesh(new THREE.SphereGeometry(0.085, 12, 10), darkM);
+      lampBack.scale.set(1, 1, 0.5); lampBack.position.set(lx, 0.70, -1.02); g.add(lampBack);
+      var headlamp = new THREE.Mesh(new THREE.SphereGeometry(0.08, 12, 10), new THREE.MeshBasicMaterial({ color: 0xfff2b0 }));
+      headlamp.scale.set(1, 1, 0.6); headlamp.position.set(lx, 0.70, -1.05); g.add(headlamp);
+      var headRing = new THREE.Mesh(new THREE.TorusGeometry(0.082, 0.012, 8, 16), chromeM);
+      headRing.position.set(lx, 0.70, -1.07); g.add(headRing);
     });
     var tail = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.07, 0.05), new THREE.MeshBasicMaterial({ color: 0xff2222 })); tail.position.set(0, 0.84, 1.16); g.add(tail);
     var exhaust = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.90, 8), chromeM); exhaust.rotation.x = Math.PI / 2; exhaust.position.set(0.24, 0.26, 0.25); g.add(exhaust);
