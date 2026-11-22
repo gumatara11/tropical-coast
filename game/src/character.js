@@ -5,29 +5,41 @@
 var skinCols = [0xe8b88a, 0xc88a5a, 0x8a5a3a, 0xf0c8a0];
 var hairCols = [0x2a1a0a, 0x3a2a1a, 0x111111, 0x8a5a2a];
 
-// A real hand with BOLD readable fingers at 150px scale: a narrower
-// flattened palm, three large fused finger bumps in a row (one mass, but
-// the bottom silhouette scallops deep into readable fingers), two wide
-// very dark grooves between the bumps on BOTH faces (front and back, so
-// the hand reads fingered from behind too), and a bigger thumb bump on
-// the inner edge. No single mitten blob, no boxing glove.
+// A hand that reads as a hand at 150px: ONE flat plane, like the reference
+// hand — a single thick extruded slab cut to a hand silhouette (palm flaring
+// to the knuckles, three fused fingers as a gently scalloped bottom edge,
+// thumb bump on the inner edge), skin color throughout, front and back. The
+// slab is thick enough to swallow the round wrist capsule whole, so no ball
+// sits on the hand; its top runs up inside the forearm. No separate finger
+// balls, no grooves: balls read as a fist and grooves read as dark sticks.
 function makeHand(skinM, side) {
   var h = new THREE.Group();
-  var palm = new THREE.Mesh(new THREE.SphereGeometry(0.055, 16, 12), skinM);
-  palm.scale.set(1.15, 1.0, 0.34); h.add(palm);
-  var grooveM = new THREE.MeshLambertMaterial({ color: 0x2a1206 });
-  [-0.034, 0, 0.034].forEach(function (fx) {
-    var finger = new THREE.Mesh(new THREE.SphereGeometry(0.030, 12, 10), skinM);
-    finger.scale.set(1.0, 1.8, 0.45); finger.position.set(fx, -0.088, 0.008); h.add(finger);
-  });
-  [-0.017, 0.017].forEach(function (gx) {
-    var groove = new THREE.Mesh(new THREE.BoxGeometry(0.010, 0.062, 0.008), grooveM);
-    groove.position.set(gx, -0.095, 0.022); h.add(groove);
-    var grooveB = new THREE.Mesh(new THREE.BoxGeometry(0.010, 0.062, 0.008), grooveM);
-    grooveB.position.set(gx, -0.095, -0.022); h.add(grooveB);
-  });
-  var th = new THREE.Mesh(new THREE.SphereGeometry(0.022, 10, 8), skinM);
-  th.scale.set(1, 1.4, 0.8); th.position.set(-side * 0.058, -0.036, 0.014); h.add(th);
+  var s = new THREE.Shape();
+  s.moveTo(-0.046, 0.075);
+  s.lineTo(0.046, 0.075);
+  if (side < 0) {
+    s.quadraticCurveTo(0.060, 0.030, 0.062, -0.004);
+    s.quadraticCurveTo(0.088, -0.026, 0.060, -0.048);
+  } else {
+    s.quadraticCurveTo(0.060, 0.030, 0.060, -0.020);
+    s.lineTo(0.060, -0.050);
+  }
+  var i, bx;
+  for (i = 0; i <= 30; i++) {
+    bx = 0.060 - i * 0.004;
+    s.lineTo(bx, -0.098 - 0.005 * (1 + Math.cos(6 * Math.PI * (bx + 0.06) / 0.12 - Math.PI)));
+  }
+  if (side > 0) {
+    s.quadraticCurveTo(-0.088, -0.026, -0.062, -0.004);
+    s.quadraticCurveTo(-0.060, 0.030, -0.046, 0.075);
+  } else {
+    s.lineTo(-0.060, -0.020);
+    s.quadraticCurveTo(-0.060, 0.030, -0.046, 0.075);
+  }
+  var geo = new THREE.ExtrudeGeometry(s, { depth: 0.086, bevelEnabled: true, bevelThickness: 0.005, bevelSize: 0.005, bevelSegments: 2, curveSegments: 8 });
+  geo.translate(0, 0, -0.043);
+  var hand = new THREE.Mesh(geo, skinM);
+  h.add(hand);
   return h;
 }
 // A shoe that reads as a shoe at 150px: an elliptical upper with a
