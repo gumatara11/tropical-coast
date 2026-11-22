@@ -5,25 +5,29 @@
 var skinCols = [0xe8b88a, 0xc88a5a, 0x8a5a3a, 0xf0c8a0];
 var hairCols = [0x2a1a0a, 0x3a2a1a, 0x111111, 0x8a5a2a];
 
-// A real hand: a flattened palm, three small fused finger bumps in a row
-// (one mass, but the bottom silhouette scallops into readable fingers),
-// two thin dark grooves between the bumps, and a small round thumb bump
-// on the inner edge. No single mitten blob.
+// A real hand with BOLD readable fingers at 150px scale: a narrower
+// flattened palm, three large fused finger bumps in a row (one mass, but
+// the bottom silhouette scallops deep into readable fingers), two wide
+// very dark grooves between the bumps on BOTH faces (front and back, so
+// the hand reads fingered from behind too), and a bigger thumb bump on
+// the inner edge. No single mitten blob, no boxing glove.
 function makeHand(skinM, side) {
   var h = new THREE.Group();
   var palm = new THREE.Mesh(new THREE.SphereGeometry(0.055, 16, 12), skinM);
-  palm.scale.set(1.35, 1.0, 0.34); h.add(palm);
-  var grooveM = new THREE.MeshLambertMaterial({ color: 0x8a5a3a });
-  [-0.028, 0, 0.028].forEach(function (fx) {
-    var finger = new THREE.Mesh(new THREE.SphereGeometry(0.024, 12, 10), skinM);
-    finger.scale.set(1.0, 1.5, 0.45); finger.position.set(fx, -0.082, 0.008); h.add(finger);
+  palm.scale.set(1.15, 1.0, 0.34); h.add(palm);
+  var grooveM = new THREE.MeshLambertMaterial({ color: 0x2a1206 });
+  [-0.034, 0, 0.034].forEach(function (fx) {
+    var finger = new THREE.Mesh(new THREE.SphereGeometry(0.030, 12, 10), skinM);
+    finger.scale.set(1.0, 1.8, 0.45); finger.position.set(fx, -0.088, 0.008); h.add(finger);
   });
-  [-0.014, 0.014].forEach(function (gx) {
-    var groove = new THREE.Mesh(new THREE.BoxGeometry(0.005, 0.045, 0.006), grooveM);
-    groove.position.set(gx, -0.092, 0.020); h.add(groove);
+  [-0.017, 0.017].forEach(function (gx) {
+    var groove = new THREE.Mesh(new THREE.BoxGeometry(0.010, 0.062, 0.008), grooveM);
+    groove.position.set(gx, -0.095, 0.022); h.add(groove);
+    var grooveB = new THREE.Mesh(new THREE.BoxGeometry(0.010, 0.062, 0.008), grooveM);
+    grooveB.position.set(gx, -0.095, -0.022); h.add(grooveB);
   });
-  var th = new THREE.Mesh(new THREE.SphereGeometry(0.018, 10, 8), skinM);
-  th.scale.set(1, 1.4, 0.8); th.position.set(-side * 0.055, -0.036, 0.014); h.add(th);
+  var th = new THREE.Mesh(new THREE.SphereGeometry(0.022, 10, 8), skinM);
+  th.scale.set(1, 1.4, 0.8); th.position.set(-side * 0.058, -0.036, 0.014); h.add(th);
   return h;
 }
 // A shoe: a wide elliptical upper (not a ball, not a box) on a thin light
@@ -56,7 +60,7 @@ function makeHead(skinM, hairM, opts) {
   skull.scale.set(1, 1.15, 1.0); head.add(skull);
   var jaw = new THREE.Mesh(new THREE.SphereGeometry(0.085, 14, 12), skinM);
   jaw.scale.set(0.82, 0.62, 0.88); jaw.position.set(0, -0.075, 0.015); head.add(jaw);
-  var hair = new THREE.Mesh(new THREE.SphereGeometry(0.15, 20, 16, 0, Math.PI * 2, 0, Math.PI * 0.50), hairM);
+  var hair = new THREE.Mesh(new THREE.SphereGeometry(0.15, 20, 16, 0, Math.PI * 2, 0, Math.PI * 0.40), hairM);
   hair.scale.set(1.08, 1.22, 1.14); hair.position.set(0, 0.025, -0.015); head.add(hair);
   var nape = new THREE.Mesh(new THREE.SphereGeometry(0.10, 14, 12), hairM);
   nape.scale.set(1.0, 0.75, 0.55); nape.position.set(0, -0.045, -0.06); head.add(nape);
@@ -73,7 +77,7 @@ function makeHead(skinM, hairM, opts) {
   var sweep = new THREE.Mesh(new THREE.SphereGeometry(0.105, 14, 12), hairM);
   sweep.scale.set(0.6, 0.9, 1.0); sweep.position.set(0.085, 0.02, -0.01); head.add(sweep);
   var fringe = new THREE.Mesh(new THREE.SphereGeometry(0.10, 14, 12), hairM);
-  fringe.scale.set(1.15, 0.55, 0.60); fringe.position.set(0.04, 0.105, 0.09); head.add(fringe);
+  fringe.scale.set(1.15, 0.42, 0.50); fringe.position.set(0.04, 0.125, 0.06); head.add(fringe);
   [-0.125, 0.125].forEach(function (ex) {
     var sb = new THREE.Mesh(new THREE.SphereGeometry(0.04, 12, 10), hairM);
     sb.scale.set(0.6, 1.3, 0.7); sb.position.set(ex, -0.02, 0.05); head.add(sb);
@@ -84,24 +88,24 @@ function makeHead(skinM, hairM, opts) {
   });
   if (opts.eyes) {
     [-0.055, 0.055].forEach(function (ex) {
-      var iris = new THREE.Mesh(new THREE.SphereGeometry(0.012, 12, 10), new THREE.MeshLambertMaterial({ color: 0x2a1a10 }));
-      iris.scale.set(1, 1, 0.4); iris.position.set(ex, 0.02, 0.118); head.add(iris);
+      var iris = new THREE.Mesh(new THREE.SphereGeometry(0.018, 12, 10), new THREE.MeshLambertMaterial({ color: 0x2a1a10 }));
+      iris.scale.set(1, 1, 0.4); iris.position.set(ex, 0.02, 0.120); head.add(iris);
       var glint = new THREE.Mesh(new THREE.SphereGeometry(0.0035, 8, 6), new THREE.MeshLambertMaterial({ color: 0xffffff }));
-      glint.scale.set(1, 1, 0.5); glint.position.set(ex - 0.004, 0.026, 0.122); head.add(glint);
-      var brow = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.012, 0.012), hairM);
-      brow.position.set(ex, 0.105, 0.122); head.add(brow);
+      glint.scale.set(1, 1, 0.5); glint.position.set(ex - 0.004, 0.026, 0.124); head.add(glint);
+      var brow = new THREE.Mesh(new THREE.BoxGeometry(0.062, 0.018, 0.012), hairM);
+      brow.position.set(ex, 0.078, 0.126); head.add(brow);
     });
   }
   if (opts.faceGlasses) {
-    var sgM = new THREE.MeshLambertMaterial({ color: 0x111114 });
-    [-0.052, 0.052].forEach(function (ex) {
-      var lens = new THREE.Mesh(new THREE.SphereGeometry(0.055, 12, 10), sgM);
-      lens.scale.set(1.0, 0.62, 0.25); lens.position.set(ex, 0.022, 0.125);
+    var sgM = new THREE.MeshBasicMaterial({ color: 0x0a0a0c });
+    [-0.056, 0.056].forEach(function (ex) {
+      var lens = new THREE.Mesh(new THREE.SphereGeometry(0.066, 12, 10), sgM);
+      lens.scale.set(1.18, 0.72, 0.22); lens.position.set(ex, 0.022, 0.125);
       lens.rotation.y = ex < 0 ? 0.18 : -0.18;
       head.add(lens);
     });
-    var topBar = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.012, 0.012), sgM);
-    topBar.position.set(0, 0.055, 0.124); head.add(topBar);
+    var topBar = new THREE.Mesh(new THREE.BoxGeometry(0.20, 0.02, 0.012), sgM);
+    topBar.position.set(0, 0.058, 0.124); head.add(topBar);
     var bridge = new THREE.Mesh(new THREE.BoxGeometry(0.028, 0.008, 0.010), sgM);
     bridge.position.set(0, 0.030, 0.124); head.add(bridge);
     [-0.104, 0.104].forEach(function (ax) {
@@ -128,14 +132,14 @@ function makeHead(skinM, hairM, opts) {
       hoop.position.set(ex, -0.07, 0.01); hoop.rotation.y = Math.PI / 2; head.add(hoop);
     });
   }
-  var nose = new THREE.Mesh(new THREE.SphereGeometry(0.026, 10, 8), skinM);
-  nose.scale.set(0.8, 1.1, 0.9); nose.position.set(0, -0.025, 0.145); head.add(nose);
+  var nose = new THREE.Mesh(new THREE.SphereGeometry(0.034, 10, 8), skinM);
+  nose.scale.set(0.9, 1.25, 1.0); nose.position.set(0, -0.025, 0.150); head.add(nose);
   if (opts.smile) {
-    var smile = new THREE.Mesh(new THREE.TorusGeometry(0.038, 0.006, 6, 12, Math.PI), new THREE.MeshLambertMaterial({ color: 0x6a2a2a }));
+    var smile = new THREE.Mesh(new THREE.TorusGeometry(0.05, 0.008, 6, 12, Math.PI), new THREE.MeshLambertMaterial({ color: 0x4a1a1a }));
     smile.position.set(0, -0.082, 0.12); smile.rotation.z = Math.PI;
     head.add(smile);
   } else {
-    var mouth = new THREE.Mesh(new THREE.BoxGeometry(0.062, 0.016, 0.012), new THREE.MeshLambertMaterial({ color: 0x6a2a2a }));
+    var mouth = new THREE.Mesh(new THREE.BoxGeometry(0.082, 0.024, 0.012), new THREE.MeshLambertMaterial({ color: 0x4a1a1a }));
     mouth.position.set(0, -0.085, 0.12); head.add(mouth);
   }
   return head;
@@ -151,11 +155,11 @@ function person(shirt, pants, female, opts) {
   var shirtM = new THREE.MeshLambertMaterial({ color: shirt });
   var pantsM = new THREE.MeshLambertMaterial({ color: pants });
   var legL = new THREE.Group(), legR = new THREE.Group();
-  legL.position.set(-0.13, 0.95, 0); legR.position.set(0.13, 0.95, 0);
+  legL.position.set(-0.11, 0.95, 0); legR.position.set(0.11, 0.95, 0);
   legL.rotation.z = 0.02; legR.rotation.z = -0.08;
   [legL, legR].forEach(function (lg) {
     var thighPts = [];
-    [[0.088, 0.25], [0.088, -0.17], [0.082, -0.23], [0.064, -0.25]].forEach(function (p) { thighPts.push(new THREE.Vector2(p[0], p[1])); });
+    [[0.105, 0.25], [0.105, -0.05], [0.098, -0.17], [0.082, -0.23], [0.064, -0.25]].forEach(function (p) { thighPts.push(new THREE.Vector2(p[0], p[1])); });
     var thigh = new THREE.Mesh(new THREE.LatheGeometry(thighPts, 20), pantsM);
     thigh.position.y = -0.25; lg.add(thigh);
     var knee = new THREE.Group(); knee.position.y = -0.50; lg.add(knee);
@@ -169,7 +173,7 @@ function person(shirt, pants, female, opts) {
   });
   g.add(legL); g.add(legR);
   var torsoPts = [];
-  [[0.155, 0.00], [0.165, 0.08], [0.175, 0.18], [0.19, 0.30], [0.20, 0.40], [0.205, 0.47], [0.20, 0.51], [0.175, 0.545], [0.13, 0.565], [0.085, 0.58]].forEach(function (p) { torsoPts.push(new THREE.Vector2(p[0], p[1])); });
+  [[0.158, -0.07], [0.155, 0.00], [0.165, 0.08], [0.175, 0.18], [0.19, 0.30], [0.20, 0.40], [0.205, 0.47], [0.20, 0.51], [0.175, 0.545], [0.13, 0.565], [0.085, 0.58]].forEach(function (p) { torsoPts.push(new THREE.Vector2(p[0], p[1])); });
   var torso = new THREE.Mesh(new THREE.LatheGeometry(torsoPts, 20), shirtM);
   torso.position.y = 0.95; torso.scale.z = 0.78; g.add(torso);
   var chest = new THREE.Mesh(new THREE.SphereGeometry(0.14, 16, 12), shirtM);
@@ -211,8 +215,10 @@ function person(shirt, pants, female, opts) {
   var head = makeHead(skin, new THREE.MeshLambertMaterial({ color: hairCols[Math.floor(rnd() * hairCols.length)] }), { eyes: true });
   g.add(head);
   head.rotation.z = 0.03;
-  var pelvis = new THREE.Mesh(new THREE.SphereGeometry(0.16, 20, 16), pantsM);
-  pelvis.scale.set(1.15, 0.75, 0.80); pelvis.position.y = 0.93; g.add(pelvis);
+  var hipPts = [];
+  [[0.165, 0.10], [0.178, 0.04], [0.182, -0.04], [0.172, -0.10], [0.158, -0.14]].forEach(function (p) { hipPts.push(new THREE.Vector2(p[0], p[1])); });
+  var pelvis = new THREE.Mesh(new THREE.LatheGeometry(hipPts, 20), pantsM);
+  pelvis.position.y = 0.92; pelvis.scale.z = 0.80; g.add(pelvis);
   g.userData = { armL: armL, armR: armR, legL: legL, legR: legR, head: head };
   g.traverse(function (o) { if (o.isMesh) o.castShadow = true; });
   return g;
@@ -228,11 +234,11 @@ var gito = new THREE.Group();
   var mShirt = new THREE.MeshLambertMaterial({ map: TEX['shirt-palm'] });
   var mPants = new THREE.MeshLambertMaterial({ color: 0x2a2a4a });
   var legL = new THREE.Group(), legR = new THREE.Group();
-  legL.position.set(-0.13, 0.95, 0); legR.position.set(0.13, 0.95, 0);
+  legL.position.set(-0.11, 0.95, 0); legR.position.set(0.11, 0.95, 0);
   legL.rotation.z = 0.05; legR.rotation.z = -0.05;
   [legL, legR].forEach(function (lg) {
     var shortsPts = [];
-    [[0.088, 0.16], [0.088, -0.10], [0.082, -0.14], [0.066, -0.16]].forEach(function (p) { shortsPts.push(new THREE.Vector2(p[0], p[1])); });
+    [[0.105, 0.16], [0.105, -0.10], [0.098, -0.14], [0.080, -0.16]].forEach(function (p) { shortsPts.push(new THREE.Vector2(p[0], p[1])); });
     var shorts = new THREE.Mesh(new THREE.LatheGeometry(shortsPts, 20), mPants); shorts.position.y = -0.16; lg.add(shorts);
     var thighSkinPts = [];
     [[0.082, 0.09], [0.079, -0.05], [0.072, -0.09]].forEach(function (p) { thighSkinPts.push(new THREE.Vector2(p[0], p[1])); });
@@ -248,7 +254,7 @@ var gito = new THREE.Group();
   });
   gito.add(legL); gito.add(legR);
   var torsoPts = [];
-  [[0.155, 0.00], [0.165, 0.08], [0.175, 0.18], [0.19, 0.30], [0.20, 0.40], [0.205, 0.47], [0.20, 0.51], [0.175, 0.545], [0.13, 0.565], [0.085, 0.58]].forEach(function (p) { torsoPts.push(new THREE.Vector2(p[0], p[1])); });
+  [[0.158, -0.07], [0.155, 0.00], [0.165, 0.08], [0.175, 0.18], [0.19, 0.30], [0.20, 0.40], [0.205, 0.47], [0.20, 0.51], [0.175, 0.545], [0.13, 0.565], [0.085, 0.58]].forEach(function (p) { torsoPts.push(new THREE.Vector2(p[0], p[1])); });
   var torso = new THREE.Mesh(new THREE.LatheGeometry(torsoPts, 20), mShirt); torso.position.y = 0.95; torso.scale.z = 0.78; gito.add(torso);
   var chest = new THREE.Mesh(new THREE.SphereGeometry(0.14, 16, 12), mShirt);
   chest.scale.set(1.0, 0.6, 0.5); chest.position.set(0, 1.33, 0.12); gito.add(chest);
@@ -291,8 +297,10 @@ var gito = new THREE.Group();
   gito.add(armL); gito.add(armR);
   var head = makeHead(mSkin, new THREE.MeshLambertMaterial({ color: 0x3a2410 }), { eyes: true, faceGlasses: true });
   gito.add(head);
-  var pelvis = new THREE.Mesh(new THREE.SphereGeometry(0.16, 20, 16), mPants);
-  pelvis.scale.set(1.15, 0.75, 0.80); pelvis.position.y = 0.93; gito.add(pelvis);
+  var hipPts = [];
+  [[0.165, 0.10], [0.178, 0.04], [0.182, -0.04], [0.172, -0.10], [0.158, -0.14]].forEach(function (p) { hipPts.push(new THREE.Vector2(p[0], p[1])); });
+  var pelvis = new THREE.Mesh(new THREE.LatheGeometry(hipPts, 20), mPants);
+  pelvis.position.y = 0.92; pelvis.scale.z = 0.80; gito.add(pelvis);
   gito.userData = { armL: armL, armR: armR, legL: legL, legR: legR, head: head };
   gito.traverse(function (o) { if (o.isMesh) o.castShadow = true; });
 })();
@@ -308,7 +316,7 @@ var woman = new THREE.Group();
   var wSkin = new THREE.MeshLambertMaterial({ color: 0xf0c8a0 });
   var wDenim = new THREE.MeshLambertMaterial({ color: 0x4a6fa5 });
   var wTopPts = [];
-  [[0.155, 0.00], [0.160, 0.10], [0.168, 0.20], [0.178, 0.28], [0.182, 0.36], [0.178, 0.44], [0.165, 0.48], [0.135, 0.51], [0.105, 0.53], [0.085, 0.54]].forEach(function (p) { wTopPts.push(new THREE.Vector2(p[0], p[1])); });
+  [[0.158, -0.07], [0.155, 0.00], [0.160, 0.10], [0.168, 0.20], [0.178, 0.28], [0.182, 0.36], [0.178, 0.44], [0.165, 0.48], [0.135, 0.51], [0.105, 0.53], [0.085, 0.54]].forEach(function (p) { wTopPts.push(new THREE.Vector2(p[0], p[1])); });
   var wTop = new THREE.Mesh(new THREE.LatheGeometry(wTopPts, 20), new THREE.MeshLambertMaterial({ color: 0xff8ac8 }));
   wTop.position.y = 0.95; wTop.scale.z = 0.80; woman.add(wTop);
   [-0.155, 0.155].forEach(function (sx) {
@@ -328,14 +336,14 @@ var woman = new THREE.Group();
   wPony.position.set(0.08, -0.18, -0.24); wPony.rotation.x = 0.25; head.add(wPony);
   woman.add(head);
   var wHipsPts = [];
-  [[0.165, 0.11], [0.175, 0.05], [0.185, -0.05], [0.178, -0.11]].forEach(function (p) { wHipsPts.push(new THREE.Vector2(p[0], p[1])); });
+  [[0.168, 0.11], [0.178, 0.05], [0.186, -0.05], [0.18, -0.11], [0.172, -0.17]].forEach(function (p) { wHipsPts.push(new THREE.Vector2(p[0], p[1])); });
   var wHips = new THREE.Mesh(new THREE.LatheGeometry(wHipsPts, 20), wDenim);
   wHips.position.y = 0.95; wHips.scale.z = 0.8; woman.add(wHips);
   var legL = new THREE.Group(), legR = new THREE.Group();
-  legL.position.set(-0.13, 0.95, 0); legR.position.set(0.13, 0.95, 0);
+  legL.position.set(-0.11, 0.95, 0); legR.position.set(0.11, 0.95, 0);
   [legL, legR].forEach(function (lg) {
     var thighPts = [];
-    [[0.088, 0.25], [0.085, -0.05], [0.076, -0.17], [0.064, -0.23], [0.056, -0.25]].forEach(function (p) { thighPts.push(new THREE.Vector2(p[0], p[1])); });
+    [[0.105, 0.25], [0.102, -0.05], [0.092, -0.17], [0.064, -0.23], [0.056, -0.25]].forEach(function (p) { thighPts.push(new THREE.Vector2(p[0], p[1])); });
     var thigh = new THREE.Mesh(new THREE.LatheGeometry(thighPts, 20), wDenim);
     thigh.position.y = -0.25; lg.add(thigh);
     var knee = new THREE.Group(); knee.position.y = -0.50; lg.add(knee);
