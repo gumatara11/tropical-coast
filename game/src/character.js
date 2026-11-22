@@ -78,24 +78,14 @@ function makeHead(skinM, hairM, opts) {
   skull.scale.set(0.96, 1.22, 0.98); head.add(skull);
   var jaw = new THREE.Mesh(new THREE.SphereGeometry(0.085, 14, 12), skinM);
   jaw.scale.set(0.72, 0.62, 0.85); jaw.position.set(0, -0.085, 0.015); head.add(jaw);
-  var hair = new THREE.Mesh(new THREE.SphereGeometry(0.138, 20, 16, 0, Math.PI * 2, 0, Math.PI * 0.30), hairM);
-  hair.scale.set(1.04, 1.12, 1.08); hair.position.set(0, 0.035, -0.025); head.add(hair);
+  var hair = new THREE.Mesh(new THREE.SphereGeometry(0.115, 20, 16, 0, Math.PI * 2, 0, Math.PI * 0.214), hairM);
+  hair.scale.set(1.08, 1.28, 1.12); hair.position.set(0, 0, 0); head.add(hair);
   var nape = new THREE.Mesh(new THREE.SphereGeometry(0.10, 14, 12), hairM);
-  nape.scale.set(1.0, 0.55, 0.55); nape.position.set(0, -0.02, -0.06); head.add(nape);
-  [-0.055, -0.018, 0.018, 0.055].forEach(function (lx) {
-    var lock = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.012, 0.04, 6), hairM);
-    lock.position.set(lx, -0.06, -0.11); lock.rotation.x = 0.15; head.add(lock);
-  });
-  var crown = new THREE.Mesh(new THREE.SphereGeometry(0.105, 14, 12), hairM);
-  crown.scale.set(1.25, 0.55, 1.05); crown.position.set(0.01, 0.10, -0.04); head.add(crown);
-  var backB1 = new THREE.Mesh(new THREE.SphereGeometry(0.075, 14, 12), hairM);
-  backB1.scale.set(1.0, 0.7, 0.55); backB1.position.set(-0.05, 0.06, -0.095); head.add(backB1);
-  var backB2 = new THREE.Mesh(new THREE.SphereGeometry(0.075, 14, 12), hairM);
-  backB2.scale.set(1.0, 0.7, 0.55); backB2.position.set(0.05, 0.06, -0.095); head.add(backB2);
+  nape.scale.set(0.95, 0.45, 0.55); nape.position.set(0, -0.015, -0.065); head.add(nape);
+  var backB = new THREE.Mesh(new THREE.SphereGeometry(0.075, 14, 12), hairM);
+  backB.scale.set(1.6, 0.6, 0.5); backB.position.set(0, 0.03, -0.10); head.add(backB);
   var sweep = new THREE.Mesh(new THREE.SphereGeometry(0.105, 14, 12), hairM);
   sweep.scale.set(0.01, 0.01, 0.01); sweep.position.set(0, 0.10, -0.05); head.add(sweep);
-  var fringe = new THREE.Mesh(new THREE.SphereGeometry(0.10, 14, 12), hairM);
-  fringe.scale.set(1.05, 0.16, 0.35); fringe.position.set(0.02, 0.165, 0.02); head.add(fringe);
   [-0.125, 0.125].forEach(function (ex) {
     var sb = new THREE.Mesh(new THREE.SphereGeometry(0.04, 12, 10), hairM);
     sb.scale.set(0.01, 0.01, 0.01); sb.position.set(ex * 0.4, 0.10, -0.05); head.add(sb);
