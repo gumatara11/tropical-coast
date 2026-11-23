@@ -9,13 +9,19 @@ var carX = 0, carZ = 10, carHeading = 0;
 // Which vehicle Gito is in: 'none' on foot, 'car' in the yellow coupe,
 // 'boat' / 'jetski' on the water, 'bike' on a parked bike.
 var rideMode = 'none', rideObj = null, rideHeading = 0, rideSpeed = 0;
+// Round 22: which car mesh Gito drives — his yellow coupe (player) by
+// default, or a parked car he adopted (parked1 / parked2). carX/carZ
+// always track the ACTIVE car; the inactive cars keep their own mesh
+// positions and stay enterable + solid.
+var carMesh = player;
 // Read-only state hook for drive tests (no gameplay effect).
-window.__dbg = function () { return { carX: carX, carZ: carZ, carHeading: carHeading, speed: speed, steer: steer, rideMode: rideMode, rideSpeed: rideSpeed, onFoot: onFoot, px: px, pz: pz, heading: heading, frontWheelY: (player.userData.frontWheels ? player.userData.frontWheels[0].rotation.y : null) }; };
+window.__dbg = function () { return { carX: carX, carZ: carZ, carHeading: carHeading, speed: speed, steer: steer, rideMode: rideMode, rideSpeed: rideSpeed, onFoot: onFoot, px: px, pz: pz, heading: heading, frontWheelY: (carMesh.userData.frontWheels ? carMesh.userData.frontWheels[0].rotation.y : null), footSpeed: footSpeed, walkPhase: walkPhase, carMesh: carMesh === player ? 'coupe' : (carMesh === parked1 ? 'parked1' : 'parked2'), wantedT: wantedT }; };
 var sparkT = 0, panicT = 0;
 // Wanted level 0-5: a collision or speeding raises it, it decays after
 // 25 s without an incident. It drives the stars, the dispatch panel,
 // police aggression and the heli spotlight. Car condition falls on hits.
 var wanted = 0, wantedT = 0, carCond = 100;
+var lastRaiseT = -99;
 // Health + armour: collisions damage armour first, then health; health
 // regens slowly once the heat is off. Ammo is the real pistol loadout.
 var health = 100, armour = 50, ammo = 12, reserve = 60, lastHitT = -99;
@@ -54,6 +60,20 @@ function spendAmmo() {
   if (window[p[1]] > 0) { var n = Math.min(p[2], window[p[1]]); window[p[1]] -= n; window[p[0]] = n - 1; return 'reload'; }
   return 'dry';
 }
+// Round 22: NPCs flee gunfire — a fired gun scares every NPC within
+// earshot (18 m), and any NPC hit directly flees too. Melee never
+// triggers the mass flee, only the NPC actually hit. Downed NPCs stay
+// down; rapid fire does not extend a flee already running.
+var FLEE_RADIUS = 18, FLEE_TIME = 4;
+function startFlee(pd) {
+  if (pd.userData.downT > 0 || pd.userData.fleeT > 0) return;
+  pd.userData.fleeT = FLEE_TIME; pd.userData.fleeRotY = pd.rotation.y;
+}
+function gunshotHeard() {
+  peds.concat(chatters).concat(beachgoers).forEach(function (pd) {
+    if (Math.hypot(pd.position.x - px, pd.position.z - pz) < FLEE_RADIUS) startFlee(pd);
+  });
+}
 // Attack the nearest NPC in front of the player, in range and in arc.
 // Melee needs a wide arc, guns a narrow one. A hit knocks the NPC back,
 // raises their arms in panic, flashes the spark and draws the police;
@@ -86,13 +106,28 @@ function tryAttack() {
     if (walkable(nx, nz)) { best.position.x = nx; best.position.z = nz; }
     sparkT = 0.3;
     if (best.userData.hp <= 0) { best.userData.downT = 8; best.userData.hp = 100; best.rotation.z = Math.PI / 2; }
+    startFlee(best);
     raiseWanted(1);
   }
   if (def.gun) playShot(); else playThud();
+  // Round 22: the shot itself is mayhem — even a miss draws the police
+  // (a hit already raised it above; the 4 s cooldown stops double count).
+  if (def.gun) raiseWanted(1);
+  if (def.gun) gunshotHeard();
 }
 // Mission stage timer (real elapsed time on the current stage).
 var stageStartT = 0, lastStageKey = '';
-function raiseWanted(n) { if (wanted < n) wanted = n; wantedT = 25; }
+// Round 22: wanted escalates — every NEW incident while already wanted
+// adds one star (up to 5), with a 4 s cooldown so one burst of shots
+// does not jump straight to 5. The timer refreshes on every incident,
+// so stars only fall once the player stops making trouble for 25 s.
+function raiseWanted(n) {
+  wantedT = 25;
+  if (t - lastRaiseT < 4) return;
+  lastRaiseT = t;
+  if (wanted < n) wanted = n;
+  else if (wanted < 5) wanted++;
+}
 var enterEl = document.getElementById('enter');
 // Nearest rideable vehicle to the player within maxD (or null).
 function nearestVeh(list, maxD) {
@@ -108,6 +143,19 @@ function tryEnter() {
   if (onFoot) {
     var d = Math.hypot(carX - px, carZ - pz);
     if (d < 4) { onFoot = false; rideMode = 'car'; gito.visible = false; speed = 0; return; }
+    // Round 22: the parked cars are enterable too — adopting one makes
+    // it the active car (carX/carZ/carHeading follow it, carMesh swaps
+    // to its mesh) and the yellow coupe stays parked where it was, still
+    // enterable itself. The drive branch + solid-body list already use
+    // carX/carZ, so an adopted car drives exactly like the coupe.
+    var pk = null;
+    if (carMesh !== player && Math.hypot(player.position.x - px, player.position.z - pz) < 4) pk = player;
+    else if (carMesh !== parked1 && Math.hypot(parked1.position.x - px, parked1.position.z - pz) < 4) pk = parked1;
+    else if (carMesh !== parked2 && Math.hypot(parked2.position.x - px, parked2.position.z - pz) < 4) pk = parked2;
+    if (pk) {
+      carMesh = pk; carX = pk.position.x; carZ = pk.position.z; carHeading = pk.rotation.y;
+      onFoot = false; rideMode = 'car'; gito.visible = false; speed = 0; return;
+    }
     // Boats + jetskis: board from the shallows (radius 6, wade to x 34).
     // Gito stays visible on water vehicles and bikes — the per-frame rider
     // pose seats him on the vehicle (the car hides him, he's inside).

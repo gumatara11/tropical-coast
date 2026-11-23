@@ -23,7 +23,7 @@
   #gun{top:136px;right:16px;background:rgba(20,10,40,.72);border-radius:10px;padding:8px 12px;font-size:20px;text-align:right}
   #gaugeBox{bottom:0;left:50%;transform:translateX(-50%);text-align:center}
   #gaugeBox canvas{width:180px;height:auto}
-  #gaugeBox b{font-size:44px}
+  #gaugeBox b{font-size:64px}
   #gaugeBox span{font-size:16px}
   .ctl{position:absolute;border-radius:50%;background:rgba(20,20,40,.45);border:2px solid rgba(255,255,255,.65);color:#fff;
     display:flex;align-items:center;justify-content:center;font-size:30px;text-shadow:none}
@@ -35,6 +35,12 @@
   #atk{right:110px;bottom:126px;width:86px;height:86px;font-size:38px;background:rgba(255,42,138,.55)}
   #enter, #talk {left:50%;bottom:240px;transform:translateX(-50%);background:rgba(20,10,40,.8);border:2px solid #fff;border-radius:10px;padding:10px 18px;font-size:22px;font-weight:700;display:none}
   #enter b, #talk b{background:#fff;color:#111;border-radius:6px;padding:2px 10px;margin-right:8px}
+  #enter{pointer-events:auto;cursor:pointer;min-width:140px;min-height:56px;text-align:center}
+  #run{left:26px;bottom:126px;width:64px;height:64px;font-size:28px}
+  #reticle{left:50%;top:50%;transform:translate(-50%,-50%);width:22px;height:22px;border:2px solid rgba(255,255,255,.85);border-radius:50%;display:none}
+  #clock{top:66px;right:16px;font-size:20px;font-weight:700}
+  #missionPanel .mnext{display:block;color:#7ac8ff;font-size:15px}
+  @media (max-width:900px){ #enter,#talk{bottom:320px} }
   #objective{display:none !important}
   #missionPanel{top:216px;left:12px;background:rgba(20,10,40,.72);border-radius:10px;padding:10px 14px;font-size:18px;font-weight:700;max-width:300px;line-height:1.35}
   #missionPanel b{color:#ffd23f;display:block;font-size:17px;letter-spacing:1px}
@@ -107,18 +113,70 @@
   #menuDlgBox { position: relative; background: rgba(20,20,30,.85); border: 2px solid rgba(255,255,255,.6); border-radius: 0 12px 12px 12px; color: #fff; font-size: 20px; line-height: 1.5; padding: 18px 44px 18px 22px; cursor: pointer; }
   #muteBtn { position: fixed; top: 58px; right: 252px; z-index: 9; background: rgba(20,20,30,.75); color: #fff; border: 2px solid rgba(255,255,255,.6); border-radius: 10px; padding: 8px 14px; font-size: 18px; font-weight: 700; cursor: pointer; display: none; }
   body.mode-game #muteBtn, body.mode-drive #muteBtn { display: block; }
+  /* Round 22: short screens (phone landscape ~390px tall) — the 720p
+     fixed-pixel HUD collides with itself there (weapons bar over the gun
+     panel, health over the mission panel, dispatch cut off). Compact
+     two-column layout: small minimap + mission panel left, money/clock/
+     stars/gun stacked right, weapons strip below the gun, car info +
+     radio + dispatch header centred on top, run button moved into the
+     bottom-left row next to the steer buttons. NOTE: this block MUST stay
+     at the END of the stylesheet — the base HUD rules below it would
+     otherwise win the cascade at equal specificity. */
+  @media (max-height:600px){
+    #map{top:6px;left:8px;width:96px;height:96px}
+    #map canvas{width:96px;height:96px}
+    #district{top:114px;font-size:13px}
+    #missionPanel{top:132px;left:8px;font-size:14px;max-width:210px;padding:5px 10px;line-height:1.2}
+    #missionPanel b{font-size:14px}
+    #missionPanel .mtitle{font-size:19px}
+    #missionPanel .mnext{font-size:13px}
+    #missionPanel .mtimer{font-size:13px}
+    #missionPanel .seg{width:14px;height:8px}
+    #health{left:8px;bottom:88px;font-size:14px}
+    #health .hrow{margin-bottom:2px}
+    #health .bar{width:120px;height:10px}
+    #healthBar,#armourBar{height:10px}
+    #health b{font-size:13px}
+    #cl1,#cl2{width:64px;height:64px;bottom:12px}
+    #cl2{left:98px}
+    #cr3{bottom:12px}
+    #run{left:170px;bottom:12px;width:56px;height:56px;font-size:24px}
+    #atk{width:76px;height:76px}
+    #money{top:4px;font-size:26px}
+    #clock{top:36px;font-size:14px}
+    #stars{top:52px;font-size:18px}
+    #gun{top:74px;font-size:13px;padding:3px 8px}
+    #fist{top:64px}
+    #muteBtn{top:64px}
+    #weapons{top:116px;right:8px;bottom:auto;gap:4px}
+    #weapons div{width:40px;height:48px;font-size:9px}
+    #weapons svg{width:24px;height:24px}
+    #weapons .wicon{font-size:14px}
+    #weapons b{font-size:11px}
+    #weapons em{font-size:9px}
+    #carInfo{left:50%;right:auto;transform:translateX(-50%);top:6px;font-size:14px;padding:4px 10px}
+    #radio{left:50%;right:auto;transform:translateX(-50%);top:34px;font-size:13px;padding:4px 10px}
+    #dispatch{left:50%;right:auto;transform:translateX(-50%);top:62px;min-width:0}
+    #dispatch .drow,#dispatch .more{display:none}
+    #dispatch .dsub .dim{display:none}
+    #gaugeBox canvas{width:120px}
+    #gaugeBox b{font-size:40px}
+    #gaugeBox span{font-size:13px}
+    #enter,#talk{bottom:170px}
+  }
 </style>
 </head>
 <body>
 <canvas id="c"></canvas>
 <div class="hud" id="map"><canvas id="minimap" width="170" height="170"></canvas></div>
 <div class="hud" id="money">$5,000</div>
+<div class="hud" id="clock">16:00</div>
 <div class="hud" id="fist">👊</div>
 <div class="hud" id="health"><div class="hrow"><span>❤️</span><div class="bar"><i id="healthBar"></i></div><b id="healthNum">100</b></div><div class="hrow"><span>🛡️</span><div class="bar"><i id="armourBar"></i></div><b id="armourNum">50</b></div></div>
 <div class="hud" id="stars">★<span class="dim">★★★</span></div>
 <div class="hud" id="gun">🔫 PISTOL<br>12 / 60</div>
 <div class="hud" id="gaugeBox"><canvas id="gauge" width="240" height="130"></canvas><br><b id="spdNum">0</b> <span>KM/H</span></div>
-<div class="hud" id="enter"><b>E</b>Enter Vehicle</div>
+<div class="hud" id="enter">MASUK</div>
 <div class="hud" id="objective">★ MISSION: Talk to Luna</div>
 <div class="hud" id="district">PROMENADE</div>
 <div class="hud" id="missionPanel"><b>MISSION 1 · STAGE 1/2</b><span class="mtitle">Welcome Back</span><span>★ Talk to Luna</span></div>
@@ -130,7 +188,7 @@
 <div id="talkDlg"><div id="talkHead"><span id="talkPortrait">L</span><span id="talkName">Luna</span><span id="talkRole">CHILDHOOD FRIEND</span></div><div id="talkBox">Gito! You're back!<span class="dlgArrow">▼</span></div></div>
 <div id="missionBanner"></div>
 <div class="ctl" id="cl1">◀</div><div class="ctl" id="cl2">▶</div>
-<div class="ctl" id="cr1">▲</div><div class="ctl" id="cr2">▼</div><div class="ctl" id="atk">👊</div><div class="ctl" id="cr3">☰</div>
+<div class="ctl" id="cr1">▲</div><div class="ctl" id="cr2">▼</div><div class="ctl" id="atk">👊</div><div class="ctl" id="cr3">☰</div><div class="ctl" id="run">🏃</div><div class="hud" id="reticle"></div>
 <button id="muteBtn">🔊</button>
 <div id="splash">
   <div id="splashLogo"><svg viewBox="0 0 360 88" aria-hidden="true"><rect x="8" y="42" width="34" height="46" fill="#111"/><rect x="46" y="30" width="26" height="58" fill="#111"/><rect x="76" y="50" width="30" height="38" fill="#111"/><rect x="110" y="22" width="28" height="66" fill="#ff2a8a"/><rect x="142" y="38" width="32" height="50" fill="#111"/><rect x="178" y="28" width="24" height="60" fill="#ff5a9a"/><rect x="206" y="46" width="30" height="42" fill="#111"/><rect x="240" y="34" width="26" height="54" fill="#111"/><path d="M316 88 Q322 56 316 36" stroke="#ffd23f" stroke-width="6" fill="none" stroke-linecap="round"/><path d="M316 36 Q294 20 274 26" stroke="#ffd23f" stroke-width="5" fill="none" stroke-linecap="round"/><path d="M316 36 Q300 12 286 8" stroke="#ffd23f" stroke-width="5" fill="none" stroke-linecap="round"/><path d="M316 36 Q316 10 318 2" stroke="#ffd23f" stroke-width="5" fill="none" stroke-linecap="round"/><path d="M316 36 Q332 14 346 10" stroke="#ffd23f" stroke-width="5" fill="none" stroke-linecap="round"/><path d="M316 36 Q338 24 354 22" stroke="#ffd23f" stroke-width="5" fill="none" stroke-linecap="round"/></svg>Tropical<span>Coast</span></div>

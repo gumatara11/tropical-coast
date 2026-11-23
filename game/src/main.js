@@ -23,6 +23,10 @@ window.__tc = {
   get screen() { return screen; }, get variant() { return variant; },
   get cover() { return cover; },
   get carCond() { return carCond; },
+  get footSpeed() { return footSpeed; }, get walkPhase() { return walkPhase; },
+  get runHeld() { return !!(keys.ShiftLeft || keys.ShiftRight); },
+  get carX() { return carX; }, get carZ() { return carZ; }, get carHeading() { return carHeading; },
+  get camFov() { return cam.fov; },
   shots: SHOTS
 };
 // Stage a named screenshot scene (see shots.js), then start the loop.

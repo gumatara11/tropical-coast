@@ -86,6 +86,9 @@ var starsEl = document.getElementById('stars');
 var carInfoEl = document.getElementById('carInfo');
 var radioEl = document.getElementById('radio');
 var dispatchEl = document.getElementById('dispatch');
+var clockEl = document.getElementById('clock');
+var reticleEl = document.getElementById('reticle');
+var lastClockMin = -1;
 function districtAt(x, z) {
   if (x >= 30) return 'OCEAN';
   if (x >= 14) return 'BEACH';
@@ -101,6 +104,15 @@ function districtAt(x, z) {
   if (x >= -40 && x <= -24) return 'AVENUE 1';
   if (x >= -88 && x <= -72) return 'AVENUE 2';
   return 'CITY CENTER';
+}
+function streetAt(x, z) {
+  if (x >= -8 && x <= 8) return 'COAST ROAD';
+  if (x >= -37 && x <= -27) return 'AVENUE 1';
+  if (x >= -85 && x <= -75) return 'AVENUE 2';
+  if (x >= 14 && x < 30) return 'MARINA ROW';
+  if (x >= 30) return 'OPEN WATER';
+  for (var i = 0; i < crossZs.length; i++) if (z >= crossZs[i] - 5 && z <= crossZs[i] + 5) return 'CROSS ST';
+  return '';
 }
 // Weapon slots: diagonal SVG gun silhouettes (a horizontal gun reads as a
 // "T" at 30 px), the pistol's ammo is the real loadout, fists are infinite.
@@ -139,13 +151,15 @@ function updateHudExtra() {
     else {
       var stg = missionStage === 'talk' ? '1/2' : '2/2';
       var obj = missionStage === 'talk' ? 'Talk to ' + m.giver : m.objective;
-      var mph = '<b>MISSION ' + (missionIdx + 1) + ' · STAGE ' + stg + '</b><span class="mtitle">' + m.name + '</span><span>★ ' + obj + '</span><div class="stagebar">' + segs + '</div><span class="mtimer">' + timerTxt + '</span>';
+      var nxt = missionStage === 'talk' ? m.objective : (missions[missionIdx + 1] ? missions[missionIdx + 1].name : 'Free roam');
+      var mph = '<b>MISSION ' + (missionIdx + 1) + ' · STAGE ' + stg + '</b><span class="mtitle">' + m.name + '</span><span>★ ' + obj + '</span><span class="mnext">NEXT ' + nxt + '</span><div class="stagebar">' + segs + '</div><span class="mtimer">' + timerTxt + '</span>';
     }
     if (mph !== lastMissionHtml) { missionPanelEl.innerHTML = mph; lastMissionHtml = mph; }
   }
-  if (districtEl) districtEl.textContent = districtAt(px, pz);
+  if (districtEl) { var da = districtAt(px, pz), sa = streetAt(px, pz); districtEl.textContent = (sa && sa !== da) ? sa + ' · ' + da : da; }
+  if (clockEl) { var cmin = 16 * 60 + Math.floor(t); if (cmin !== lastClockMin) { lastClockMin = cmin; var ch = Math.floor(cmin / 60) % 24, cm2 = cmin % 60; clockEl.textContent = (ch < 10 ? '0' : '') + ch + ':' + (cm2 < 10 ? '0' : '') + cm2; } }
   if (starsEl) { var st = ''; for (var si = 0; si < 5; si++) st += si < wanted ? '★' : '<span class="dim">★</span>'; if (st !== lastStarsHtml) { starsEl.innerHTML = st; lastStarsHtml = st; } }
-  if (carInfoEl) carInfoEl.textContent = 'COAST GT · CONDITION ' + carCond + '%';
+  if (carInfoEl) { var cn = carMesh === parked1 ? 'CRIMSON GT' : (carMesh === parked2 ? 'AZURE GT' : 'COAST GT'); carInfoEl.textContent = cn + ' · CONDITION ' + carCond + '%'; }
   if (radioEl) radioEl.textContent = '♪ RADIO TROPICAL 98.6 — Island Pop';
   if (healthBarEl) healthBarEl.style.width = health + '%';
   if (armourBarEl) armourBarEl.style.width = (armour / 50 * 100) + '%';
@@ -170,7 +184,8 @@ function updateHudExtra() {
       var dh = '<b>POLICE DISPATCH <span class="live">● LIVE</span></b>';
       var st7 = '';
       for (var si7 = 0; si7 < 5; si7++) st7 += si7 < wanted ? '★' : '<span class="dim">★</span>';
-      dh += '<span class="dsub">' + st7 + ' · UNITS RESPONDING: 7</span>';
+      var chasing = 1 + (wanted >= 2 ? 1 : 0) + (wanted >= 3 ? 2 : 0) + (wanted >= 4 ? 1 : 0) + (wanted >= 5 ? 1 : 0) + 1;
+      dh += '<span class="dsub">' + st7 + ' · UNITS RESPONDING: ' + chasing + '</span>';
       units.forEach(function (u) {
         var dd = Math.round(Math.hypot(u[1].position.x - px, u[1].position.z - pz) / 5) * 5;
         var bw = Math.max(8, Math.round(100 - dd * 1.2));

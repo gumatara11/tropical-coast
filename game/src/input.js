@@ -22,6 +22,29 @@ function bindCtl(id, code) {
   el.addEventListener('touchstart', function (e) { e.preventDefault(); keys[code] = true; startAudio(); });
   el.addEventListener('touchend', function () { keys[code] = false; });
 }
+// Round 22: the run button — hold to run (Shift on keyboard). Touch
+// hold + mouse hold both map to ShiftLeft, so the movement code reads
+// one input either way. Touchend / mouseup / mouseleave all release,
+// so a stuck finger never leaves the player sprinting.
+var runEl = document.getElementById('run');
+if (runEl) {
+  runEl.addEventListener('touchstart', function (e) { e.preventDefault(); keys.ShiftLeft = true; startAudio(); });
+  runEl.addEventListener('touchend', function () { keys.ShiftLeft = false; });
+  runEl.addEventListener('touchcancel', function () { keys.ShiftLeft = false; });
+  runEl.addEventListener('mousedown', function (e) { e.preventDefault(); keys.ShiftLeft = true; startAudio(); });
+  runEl.addEventListener('mouseup', function () { keys.ShiftLeft = false; });
+  runEl.addEventListener('mouseleave', function () { keys.ShiftLeft = false; });
+}
+// Round 22: the enter pill is a real button now — tap / click calls
+// tryEnter (enter MASUK on foot, exit KELUAR while riding). Touchstart
+// with preventDefault suppresses the synthetic mouse events, so one tap
+// fires exactly once; desktop uses click. No handler on #talk — the
+// talk box itself advances dialogue.
+var enterBtnEl = document.getElementById('enter');
+if (enterBtnEl) {
+  enterBtnEl.addEventListener('touchstart', function (e) { e.preventDefault(); startAudio(); tryEnter(); });
+  enterBtnEl.addEventListener('click', function (e) { e.preventDefault(); startAudio(); tryEnter(); });
+}
 bindCtl('cl1', 'KeyA'); bindCtl('cl2', 'KeyD'); bindCtl('cr1', 'KeyW'); bindCtl('cr2', 'KeyS');
 // Round 19: the attack button — big, on the right above the menu key,
 // tap (touch) or click (mouse) to punch / fire. Touchstart + mousedown

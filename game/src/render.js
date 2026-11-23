@@ -127,6 +127,59 @@ function optimizeScene() {
 }
 optimizeScene();
 function brakeK(o) { return o.userData.brakeT > 0 ? 0.25 : 1; }
+// Round 22: on-foot police pursuit — a unit closes on a target point at
+// a capped speed (m/s), sliding along walkable ground so it never clips
+// through buildings or into the sea. 7 m/s for the lead unit: faster
+// than walking (5), slower than the player's run (8.5), so Gito can
+// still escape on foot by running.
+function chaseOnFoot(pu, tx, tz, spd, dt) {
+  var dx = tx - pu.position.x, dz = tz - pu.position.z;
+  var d = Math.hypot(dx, dz);
+  if (d < 0.01) return;
+  var step = Math.min(spd * dt, d);
+  var nx = pu.position.x + (dx / d) * step, nz = pu.position.z + (dz / d) * step;
+  if (walkable(nx, nz)) { pu.position.x = nx; pu.position.z = nz; }
+  else if (walkable(nx, pu.position.z)) pu.position.x = nx;
+  else if (walkable(pu.position.x, nz)) pu.position.z = nz;
+  pu.rotation.y = Math.atan2(-dx / d, -dz / d);
+}
+// Round 22: fleeing NPCs — run away from the player at ~2x walk speed
+// with a fast leg cycle, arms raised, head bowed; walkable-checked per
+// step so they never clip through buildings. Runs after the normal NPC
+// loops so the flee pose wins while fleeT runs; when it ends the NPC
+// faces its old direction and walks normally again.
+function endFlee(pd) {
+  var u = pd.userData;
+  u.fleeT = 0; pd.rotation.y = u.fleeRotY || 0;
+  if (u.head) u.head.rotation.x = 0;
+}
+function updateFlee(list, dt) {
+  list.forEach(function (pd) {
+    var u = pd.userData;
+    if (!(u.fleeT > 0)) return;
+    if (u.downT > 0) { endFlee(pd); return; }
+    var dx = pd.position.x - px, dz = pd.position.z - pz;
+    var d = Math.hypot(dx, dz) || 1;
+    if (d > 18) { endFlee(pd); return; }
+    var sp = (u.sp || 1) * 3;
+    var nx = pd.position.x + (dx / d) * sp * dt, nz = pd.position.z + (dz / d) * sp * dt;
+    if (walkable(nx, nz)) { pd.position.x = nx; pd.position.z = nz; }
+    else if (walkable(nx, pd.position.z)) pd.position.x = nx;
+    else if (walkable(pd.position.x, nz)) pd.position.z = nz;
+    pd.position.y = groundY(pd.position.x, pd.position.z);
+    pd.rotation.y = Math.atan2(-dx / d, -dz / d);
+    u.walk = (u.walk || 0) + dt * 9;
+    var sw = Math.sin(u.walk) * 0.55;
+    if (u.legL) { u.legL.rotation.x = sw; u.legR.rotation.x = -sw; }
+    if (u.armL) { u.armL.rotation.x = -1.8 + Math.sin(t * 10) * 0.2; u.armR.rotation.x = -1.8 - Math.sin(t * 10) * 0.2; }
+    if (u.head) u.head.rotation.x = 0.25;
+    u.fleeT -= dt;
+    if (u.fleeT <= 0) endFlee(pd);
+  });
+}
+// Round 22: smoothed follow heading — the camera swings behind the
+// player gradually instead of snapping to the facing every frame.
+var camHead = 0, camHeadInit = false;
 function frame() {
   requestAnimationFrame(frame);
   var dt = Math.min(clock.getDelta(), 0.05); t += dt;
@@ -204,9 +257,15 @@ function frame() {
   });
   var chaseK = wanted > 0 ? 2.4 : 1.2;
   if (onFoot) {
-    police.position.x += ((px - 4.2) - police.position.x) * dt * 0.8;
-    police.position.z += ((pz - 30) - police.position.z) * dt * 0.8;
-    police.rotation.y = Math.PI;
+    // Round 22: wanted on foot means a real pursuit now — the lead unit
+    // closes at 7 m/s (outrun it with the run button, not by walking).
+    // No wanted, the old slow patrol drift stays.
+    if (wanted > 0) chaseOnFoot(police, px + 3.5, pz - 3, 7.0, dt);
+    else {
+      police.position.x += ((px - 4.2) - police.position.x) * dt * 0.8;
+      police.position.z += ((pz - 30) - police.position.z) * dt * 0.8;
+      police.rotation.y = Math.PI;
+    }
   } else {
     police.position.x += ((px + 3.5) - police.position.x) * dt * chaseK;
     police.position.z += ((pz - 3) - police.position.z) * dt * chaseK;
@@ -216,14 +275,18 @@ function frame() {
     police2.position.x += ((px - 3.5) - police2.position.x) * dt * 2.0;
     police2.position.z += ((pz - 6) - police2.position.z) * dt * 2.0;
     police2.rotation.y = heading;
-  } else { police2.position.z += dt * 5; if (police2.position.z > 210) police2.position.z = -210; }
-  [[police3, 6, -12], [police4, -6, -16], [police5, 2, -20], [police6, -2, -24]].forEach(function (u) {
+  } else if (wanted >= 2 && onFoot) { chaseOnFoot(police2, px - 3.5, pz - 6, 6.5, dt); }
+  else { police2.position.z += dt * 5; if (police2.position.z > 210) police2.position.z = -210; }
+  // Round 22: more stars, more hunters on foot too — police3/4 join at
+  // 3 stars, police5 at 4, police6 at 5 (the dispatch count follows).
+  [[police3, 6, -12, 3], [police4, -6, -16, 3], [police5, 2, -20, 4], [police6, -2, -24, 5]].forEach(function (u) {
     var pu = u[0];
     if (wanted > 0 && !onFoot) {
       pu.position.x += ((px + u[1]) - pu.position.x) * dt * 2.0;
       pu.position.z += ((pz + u[2]) - pu.position.z) * dt * 2.0;
       pu.rotation.y = heading;
-    } else { pu.position.z += dt * 5; if (pu.position.z > 210) pu.position.z = -210; }
+    } else if (onFoot && wanted >= u[3]) { chaseOnFoot(pu, px + u[1], pz + u[2], 6.5, dt); }
+    else { pu.position.z += dt * 5; if (pu.position.z > 210) pu.position.z = -210; }
   });
   taxi.position.z += dt * 7 * brakeK(taxi); if (taxi.position.z > 210) taxi.position.z = -210;
   if (taxi.userData.brakeT > 0) taxi.userData.brakeT -= dt;
@@ -271,9 +334,9 @@ function frame() {
   // NPC throws its arms up for the length of hitT instead of walking.
   peds.forEach(function (pd) {
     if (pd.userData.downT > 0) return;
-    pd.userData.walk += dt * 3;
+    if (!(pd.userData.fleeT > 0)) pd.userData.walk += dt * 3;
     var dir = pd.userData.side < 0 ? 1 : -1;
-    if (!(pd.userData.hitT > 0)) pd.position.z += dir * dt * pd.userData.sp * 1.5;
+    if (!(pd.userData.hitT > 0) && !(pd.userData.fleeT > 0)) pd.position.z += dir * dt * pd.userData.sp * 1.5;
     if (pd.position.z > 210) pd.position.z = -210;
     if (pd.position.z < -210) pd.position.z = 210;
     pd.position.y = groundY(pd.position.x, pd.position.z);
@@ -295,6 +358,9 @@ function frame() {
       if (pd.userData.hitT > 0) pd.userData.hitT -= dt;
     });
   });
+  // Round 22: gunshot flee — after the normal NPC loops, so the run
+  // pose + escape movement win while fleeT runs.
+  updateFlee(peds, dt); updateFlee(chatters, dt); updateFlee(beachgoers, dt);
 
   // Player: on foot vs driving — only while playing or in cover staging.
   var kmh = 0;
@@ -313,10 +379,17 @@ function frame() {
       if (keys.KeyS || keys.ArrowDown) mvT = -0.5;
       if (keys.KeyA || keys.ArrowLeft) str = 1;
       if (keys.KeyD || keys.ArrowRight) str = -1;
-      var targetSpeed = mvT * 5;
-      var accel = Math.abs(targetSpeed) > Math.abs(footSpeed) ? 14 : 18;
+      // Round 22: run — hold Shift (keyboard) or the run button (touch)
+      // to sprint at 8.5 m/s forward; walking stays 5, reversing 2.5.
+      // Softer ramps than round 18 (12 up / 14 down) so starting and
+      // stopping feel gradual on a phone's binary touch buttons, and a
+      // slightly slower turn while sprinting so it does not twitch.
+      var running = (keys.ShiftLeft || keys.ShiftRight) && mvT > 0;
+      var targetSpeed = mvT * (running ? 8.5 : 5);
+      var accel = Math.abs(targetSpeed) > Math.abs(footSpeed) ? 12 : 14;
       footSpeed += Math.max(-accel * dt, Math.min(accel * dt, targetSpeed - footSpeed));
-      turnVel += Math.max(-6 * dt, Math.min(6 * dt, str * 2.2 - turnVel));
+      var turnTarget = str * (running ? 1.9 : 2.2);
+      turnVel += Math.max(-6 * dt, Math.min(6 * dt, turnTarget - turnVel));
       heading += turnVel * dt;
       // Movement follows the facing direction (-sin h, -cos h), so
       // walking east/west no longer goes backwards against the facing.
@@ -327,8 +400,10 @@ function frame() {
       // parked cars on Avenue 1 are bodies now — walking into one stops
       // at its flank instead of passing through. Only blocks ENTRY, so
       // a player who spawns inside (dismount) can always walk back out.
+      // Round 22: the inactive coupe is listed too, so the car Gito is
+      // NOT driving stays solid instead of walk-through.
       var blocked = false;
-      [[carX, carZ, carHeading], [parked1.position.x, parked1.position.z, parked1.rotation.y], [parked2.position.x, parked2.position.z, parked2.rotation.y]].forEach(function (c) {
+      [[carX, carZ, carHeading], [player.position.x, player.position.z, player.rotation.y], [parked1.position.x, parked1.position.z, parked1.rotation.y], [parked2.position.x, parked2.position.z, parked2.rotation.y]].forEach(function (c) {
         var dx = npx - c[0], dz = npz - c[1];
         var lf = -dx * Math.sin(c[2]) - dz * Math.cos(c[2]);
         var ls = -dx * Math.cos(c[2]) + dz * Math.sin(c[2]);
@@ -350,7 +425,10 @@ function frame() {
           if (!hitCar && Math.hypot(o.position.x - px, o.position.z - pz) < 2.6) hitCar = o;
         });
         if (hitCar && sparkT <= 0) {
-          sparkT = 0.5; panicT = 1.2; raiseWanted(1); damagePlayer(10); playThud();
+          // Round 22: a traffic hit knocks Gito clear, plays the thud,
+          // brakes the car and draws the police — but it NEVER costs
+          // health or armour anymore.
+          sparkT = 0.5; panicT = 1.2; raiseWanted(1); playThud();
           var kdx = px - hitCar.position.x, kdz = pz - hitCar.position.z;
           var kl = Math.hypot(kdx, kdz) || 1;
           var kpx = px + (kdx / kl) * 1.6, kpz = pz + (kdz / kl) * 1.6;
@@ -366,7 +444,9 @@ function frame() {
       // bent, arms hanging asymmetrically, head tilted a touch, soft
       // breathing. While walking, the plain walk cycle.
       var idle = Math.abs(footSpeed) < 0.1;
-      var wp = Math.sin(walkPhase) * 0.5 * Math.min(1, Math.abs(footSpeed) / 2);
+      // Round 22: the swing grows with speed (bigger at a sprint) so a
+      // run reads as a run, not a fast walk.
+      var wp = Math.sin(walkPhase) * 0.5 * Math.min(1.2, 0.25 + Math.abs(footSpeed) / 4);
       gito.userData.legL.rotation.x = idle ? -0.05 : wp; gito.userData.legR.rotation.x = idle ? 0.03 : -wp;
       gito.userData.armL.rotation.x = idle ? -0.04 : -wp; gito.userData.armR.rotation.x = idle ? 0.05 : wp;
       // Idle arms angle OUTWARD (0.30 rad) — pivot at the shoulder so
@@ -378,7 +458,10 @@ function frame() {
       // knees/elbows, head tilt, YXZ lean). The walk branch only
       // overwrites thighs/shoulders, so a seated pose would otherwise
       // stick after dismounting (elbows rest at their built -0.25 bend).
-      gito.rotation.order = 'XYZ'; gito.rotation.x = 0; gito.rotation.z = idle ? Math.sin(t * 1.2) * 0.012 : 0;
+      // Round 22: a slight forward lean at a sprint (YXZ order, so the
+      // pitch leans forward instead of rolling sideways under yaw).
+      var runLean = Math.min(1, Math.max(0, (Math.abs(footSpeed) - 5.5) / 3));
+      gito.rotation.order = runLean > 0 ? 'YXZ' : 'XYZ'; gito.rotation.x = runLean > 0 ? -0.08 * runLean : 0; gito.rotation.z = idle ? Math.sin(t * 1.2) * 0.012 : 0;
       gito.userData.head.rotation.x = 0; gito.userData.head.rotation.z = idle ? 0.03 : 0;
       gito.userData.legL.children[1].rotation.x = 0; gito.userData.legR.children[1].rotation.x = idle ? 0.08 : 0;
       gito.userData.armL.children[2].rotation.x = -0.25; gito.userData.armR.children[2].rotation.x = -0.25;
@@ -393,9 +476,14 @@ function frame() {
       // rideable vehicle.
       var cd = Math.hypot(carX - px, carZ - pz);
       var nearRide = cd < 4 ? { x: carX, z: carZ } : null;
+      // Round 22: the parked cars and the inactive coupe count too, so
+      // the MASUK pill + arrow show for every car Gito can actually take.
+      if (!nearRide && carMesh !== player && Math.hypot(player.position.x - px, player.position.z - pz) < 4) nearRide = { x: player.position.x, z: player.position.z };
+      if (!nearRide && carMesh !== parked1 && Math.hypot(parked1.position.x - px, parked1.position.z - pz) < 4) nearRide = { x: parked1.position.x, z: parked1.position.z };
+      if (!nearRide && carMesh !== parked2 && Math.hypot(parked2.position.x - px, parked2.position.z - pz) < 4) nearRide = { x: parked2.position.x, z: parked2.position.z };
       if (!nearRide) { var wv2 = nearestVeh(motorboats.concat(jetskis), 6); if (wv2) nearRide = { x: wv2.position.x, z: wv2.position.z }; }
       if (!nearRide) { var bk2 = nearestVeh(bikes, 4); if (bk2) nearRide = { x: bk2.position.x, z: bk2.position.z }; }
-      if (enterEl) enterEl.style.display = nearRide ? 'block' : 'none';
+      if (enterEl) { enterEl.style.display = (nearRide && !talking) ? 'block' : 'none'; if (nearRide && !talking) enterEl.textContent = 'MASUK'; }
       enterArrow.visible = !!nearRide;
       if (nearRide) { enterArrow.position.set(nearRide.x, 2.9 + Math.sin(t * 3) * 0.25, nearRide.z); enterArrow.rotation.y = t * 1.5; }
       // "Talk to NPC" prompt when close to the current mission giver.
@@ -438,7 +526,7 @@ function frame() {
       stageSeat(rideObj, 0.48, 0.35, rideObj.position.y + 0.71, 0.25, { hip: -1.5, knee: 1.7, shoulder: -0.75, elbow: -0.4, head: 0.1 });
     }
     kmh = Math.round(rideSpeed * 3.6);
-    if (enterEl) enterEl.style.display = 'none';
+    if (enterEl) { if (!cover) { enterEl.style.display = 'block'; enterEl.textContent = 'KELUAR'; } else enterEl.style.display = 'none'; }
     if (talkEl) talkEl.style.display = 'none';
   } else if (rideMode === 'bike') {
     // Bike drive: like the car but slower, on walkable ground (roads +
@@ -475,8 +563,8 @@ function frame() {
     traffic.concat([police, police2, police3, police4, police5, police6, taxi]).concat(bikeTraffic).forEach(function (o) {
       if (Math.hypot(o.position.x - px, o.position.z - pz) < 3.0) hitB = true;
     });
-    if (hitB && sparkT <= 0) { sparkT = 0.5; panicT = 1.2; raiseWanted(1); damagePlayer(5); playThud(); }
-    if (enterEl) enterEl.style.display = 'none';
+    if (hitB && sparkT <= 0) { sparkT = 0.5; panicT = 1.2; raiseWanted(1); playThud(); }
+    if (enterEl) { if (!cover) { enterEl.style.display = 'block'; enterEl.textContent = 'KELUAR'; } else enterEl.style.display = 'none'; }
     if (talkEl) talkEl.style.display = 'none';
   } else {
     // The car turns for real: movement follows the nose (-sin h,
@@ -490,18 +578,21 @@ function frame() {
     if (speed > 0 && !(keys.KeyW || keys.ArrowUp) && !cover) speed -= 8 * dt;
     if (speed < 0 && !(keys.KeyS || keys.ArrowDown) && !cover) speed += 8 * dt;
     if (speed < -8) speed = -8; if (speed > 42) speed = 42;
-    if (keys.KeyA || keys.ArrowLeft) steer = Math.min(steer + dt * 2, 0.6);
-    else if (keys.KeyD || keys.ArrowRight) steer = Math.max(steer - dt * 2, -0.6);
-    else steer *= (1 - dt * 4);
+    // Round 22: steering eases in faster when slow, slower when fast —
+    // no twitch at speed, still nimble in a parking turn.
+    var steerRate = 2.6 - Math.min(1.2, Math.abs(speed) * 0.03);
+    if (keys.KeyA || keys.ArrowLeft) steer = Math.min(steer + dt * steerRate, 0.6);
+    else if (keys.KeyD || keys.ArrowRight) steer = Math.max(steer - dt * steerRate, -0.6);
+    else steer *= (1 - dt * 5);
     carHeading += steer * dt * (speed / (4 + Math.abs(speed) * 0.15));
     var ncx = carX - Math.sin(carHeading) * speed * dt;
     var ncz = carZ - Math.cos(carHeading) * speed * dt;
     if (ncz > 205) ncz = -205; if (ncz < -205) ncz = 205;
     if (walkable(ncx, ncz)) { carX = ncx; carZ = ncz; } else speed = 0;
     px = carX; pz = carZ; heading = carHeading;
-    player.position.set(carX, groundY(carX, carZ), carZ);
-    player.rotation.y = carHeading;
-    if (player.userData.frontWheels) player.userData.frontWheels.forEach(function (wg) { wg.rotation.y = steer * 0.5; });
+    carMesh.position.set(carX, groundY(carX, carZ), carZ);
+    carMesh.rotation.y = carHeading;
+    if (carMesh.userData.frontWheels) carMesh.userData.frontWheels.forEach(function (wg) { wg.rotation.y = steer * 0.5; });
     kmh = Math.round(speed * 3.6);
     if (kmh > 130) raiseWanted(1); // speeding draws the police
     // Collision with traffic / police (bike traffic included).
@@ -509,8 +600,10 @@ function frame() {
     traffic.concat([police, police2, police3, police4, police5, police6, taxi]).concat(bikeTraffic).forEach(function (o) {
       if (Math.hypot(o.position.x - carX, o.position.z - carZ) < 3.4) hit = true;
     });
-    if (hit && sparkT <= 0) { sparkT = 0.5; panicT = 1.2; raiseWanted(2); carCond = Math.max(40, carCond - 3); damagePlayer(8); playThud(); }
-    if (enterEl) enterEl.style.display = 'none';
+    // Round 22: a crash dents the CAR (condition falls) and draws the
+    // police — it never costs Gito health or armour.
+    if (hit && sparkT <= 0) { sparkT = 0.5; panicT = 1.2; raiseWanted(2); carCond = Math.max(40, carCond - 3); playThud(); }
+    if (enterEl) { if (!cover) { enterEl.style.display = 'block'; enterEl.textContent = 'KELUAR'; } else enterEl.style.display = 'none'; }
     if (talkEl) talkEl.style.display = 'none';
   }
 
@@ -538,17 +631,22 @@ function frame() {
       spark.rotation.y = t * 5; spark.material.opacity = Math.max(0, sparkT * 1.8);
     } else spark.visible = false;
     // Parked car always sits where Gito left it (follows ground height too).
-    player.position.set(carX, groundY(carX, carZ), carZ);
-    player.rotation.y = carHeading;
+    // Round 22: this is the ACTIVE car (carMesh) — the coupe or an
+    // adopted parked car; the inactive cars keep their own spots.
+    carMesh.position.set(carX, groundY(carX, carZ), carZ);
+    carMesh.rotation.y = carHeading;
     // Nearby peds panic when the car is close.
     peds.forEach(function (pd) {
       var dd = Math.hypot(pd.position.x - px, pd.position.z - pz);
-      if (!onFoot && dd < 6) { pd.position.x += (pd.position.x > px ? 1 : -1) * dt * 3; pd.userData.armL.rotation.x = -2; pd.userData.armR.rotation.x = -2; }
+      if (!onFoot && dd < 6 && !(pd.userData.fleeT > 0)) { pd.position.x += (pd.position.x > px ? 1 : -1) * dt * 3; pd.userData.armL.rotation.x = -2; pd.userData.armR.rotation.x = -2; }
     });
     if (panicT > 0) panicT -= dt;
     // HUD: speedometer, minimap, mission panel, stars, car info, radio.
     drawGauge(kmh);
     if (gaugeBoxEl) gaugeBoxEl.style.display = onFoot ? 'none' : 'block';
+    // Round 22: the aim circle shows only while holding a gun on foot —
+    // fists and the bat get no crosshair, and never while driving.
+    if (reticleEl) reticleEl.style.display = (onFoot && playing && !cover && !talking && WEAPON_DEFS[weapon].gun) ? 'block' : 'none';
     drawMap();
     updateHudExtra();
     if (spdNum) spdNum.textContent = kmh;
@@ -793,33 +891,49 @@ function directCamera(dt) {
     // it while riding, or its frozen mount-point position floats in front
     // of the follow camera and blocks the rider.
     if (!onFoot) enterArrow.visible = false;
-    // Drive camera LOW + CLOSE (6.0 m / 3.0 high): a high camera looked
-    // down on the roof, so the roof read as a flat yellow panel; the chase
-    // view is low, near bumper height, rear face dominant.
-    var camDist = onFoot ? 2.6 : 6.0, camH = onFoot ? 2.0 : 3.0, camLat = onFoot ? 1.0 : 2.8;
+    // Round 22: closer + lower than round 21 (top-3 chase framing — the
+    // car reads ~30% of the frame, rear face dominant) and the follow
+    // heading itself eases (camHead), so turning swings the camera
+    // smoothly instead of whipping the view. The lateral offset is
+    // heading-relative now, so it stays over the same shoulder when
+    // Gito turns around instead of swinging to the other side.
+    var camDist = onFoot ? 2.4 : 5.6, camH = onFoot ? 1.9 : 2.8, camLat = onFoot ? 0.8 : 1.4;
     // On boat/jetski/bike the camera sits dead behind the (small) vehicle
     // and looks along the heading, so it stays centred at any heading.
     if (!onFoot && rideMode !== 'car') camLat = 0;
-    var cx = px + Math.sin(heading) * camDist, cz = pz + Math.cos(heading) * camDist; // behind = (-movement) = (+sin h, +cos h)
-    var tx = cx + camLat + (sparkT > 0 ? (Math.random() - 0.5) * 0.3 : 0), ty = camH, tz = cz;
+    if (!camHeadInit) { camHead = heading; camHeadInit = true; }
+    var chd = heading - camHead;
+    while (chd > Math.PI) chd -= Math.PI * 2;
+    while (chd < -Math.PI) chd += Math.PI * 2;
+    camHead += chd * (1 - Math.exp(-6 * dt));
+    var chx = Math.sin(camHead), chz = Math.cos(camHead);
+    var cx = px + chx * camDist, cz = pz + chz * camDist; // behind = (-movement) = (+sin h, +cos h)
+    var tx = cx + chz * camLat + (sparkT > 0 ? (Math.random() - 0.5) * 0.3 : 0), ty = camH, tz = cz - chx * camLat;
     if (cover) cam.position.set(tx, ty, tz);
     else {
       // Round 18: in real gameplay the camera eases toward its slot
       // instead of snapping to it every frame — the ride feels smooth,
       // not bolted on. Cover shots keep the exact pinned position.
-      var ck = 1 - Math.exp(-10 * dt);
+      // Round 22: a touch softer (7/s) now the heading eases too.
+      var ck = 1 - Math.exp(-7 * dt);
       cam.position.x += (tx - cam.position.x) * ck;
       cam.position.y += (ty - cam.position.y) * ck;
       cam.position.z += (tz - cam.position.z) * ck;
     }
+    // Round 22: the view widens a touch with speed (FOV 60 -> ~68 at
+    // full tilt) so a fast drive feels fast; it eases back at once when
+    // Gito slows or gets out. Cover keeps the fixed 60.
+    var fovSpd = rideMode === 'car' ? Math.abs(speed) : Math.abs(rideSpeed);
+    var targetFov = (!cover && !onFoot) ? 60 + Math.min(9, fovSpd * 0.2) : 60;
+    if (Math.abs(cam.fov - targetFov) > 0.01) { cam.fov += (targetFov - cam.fov) * (1 - Math.exp(-3 * dt)); cam.updateProjectionMatrix(); }
     if (onFoot) {
       // Round 18: look ahead of the player in the facing direction —
       // the old fixed (px, 1.6, pz-2) point shoved the player to the
       // frame edge whenever he faced south. Cover keeps the old point.
       if (cover) cam.lookAt(px, 1.6, pz - 2);
-      else cam.lookAt(px - Math.sin(heading) * 2, 1.6, pz - Math.cos(heading) * 2);
+      else cam.lookAt(px - chx * 2, 1.6, pz - chz * 2);
     }
-    else cam.lookAt(px - Math.sin(heading) * 10, 1.5, pz - Math.cos(heading) * 10);
+    else cam.lookAt(px - chx * 10, 1.5, pz - chz * 10);
   }
   // The enter arrow's glow cone looms huge when the follow camera is close
   // behind the player — scale the arrow down at close range so it reads as
