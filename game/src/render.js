@@ -241,7 +241,12 @@ function updateFlee(list, dt) {
 var camHead = 0, camHeadInit = false;
 function frame() {
   requestAnimationFrame(frame);
-  var dt = Math.min(clock.getDelta(), 0.05); t += dt;
+  var dt = Math.min(clock.getDelta(), 0.05);
+  // Round 25: pause — freeze the sim (Esc/P or the ☰ button), keep
+  // rendering the frozen frame so the pause menu sits over the game.
+  // The clock delta is already consumed, so resuming does not jump.
+  if (typeof paused !== 'undefined' && paused) { renderer.render(scene, cam); return; }
+  t += dt;
   var playing = (screen === 'game' || screen === 'drive');
   // Golden-hour sun rig follows the player so the long shadows stay in
   // frame wherever the chase goes, at ~15° elevation nearly straight
@@ -294,18 +299,22 @@ function frame() {
   // Traffic flow (z-flow on the coast road and avenues, x-flow on the
   // cross streets, bikes like cars) and police patrol / chase.
   traffic.forEach(function (tr, i) {
+    if (tr.userData.adopted) return;
     tr.position.z += dt * (6 + i) * brakeK(tr);
     if (tr.position.z > 210) tr.position.z = -210;
   });
   aveTraffic.forEach(function (tr, i) {
+    if (tr.userData.adopted) return;
     tr.position.z += dt * (5 + i * 2) * brakeK(tr);
     if (tr.position.z > 210) tr.position.z = -210;
   });
   ave2Traffic.forEach(function (tr, i) {
+    if (tr.userData.adopted) return;
     tr.position.z += dt * (5 + i * 2) * brakeK(tr);
     if (tr.position.z > 210) tr.position.z = -210;
   });
   ave3Traffic.forEach(function (tr, i) {
+    if (tr.userData.adopted) return;
     tr.position.z += dt * (5 + i * 2) * brakeK(tr);
     if (tr.position.z > 210) tr.position.z = -210;
   });
@@ -313,6 +322,7 @@ function frame() {
   // dir in userData), the full width of the grid (x -158..8), and each
   // car yields at intersections instead of crossing through traffic.
   crossTraffic.forEach(function (ct) {
+    if (ct.userData.adopted) return;
     if (crossBlocked(ct.position.x, ct.position.z)) return;
     if (ct.userData.dir > 0) { ct.position.x += dt * 8 * brakeK(ct); if (ct.position.x > 8) ct.position.x = -158; }
     else { ct.position.x -= dt * 8 * brakeK(ct); if (ct.position.x < -158) ct.position.x = 8; }
@@ -331,9 +341,14 @@ function frame() {
   // chase and are no longer lane traffic.
   var sepList = traffic.concat(aveTraffic, ave2Traffic, ave3Traffic, bikeTraffic, [taxi]);
   if (wanted === 0) sepList = sepList.concat([police, police2, police3, police4, police5, police6]);
+  // Round 25 (bug #4): an adopted car is driven by the player, not the
+  // lane logic — keep it out of the separation pass.
+  sepList = sepList.filter(function (o) { return !o.userData.adopted; });
   separateTraffic(sepList);
   var chaseK = wanted > 0 ? 2.4 : 1.2;
-  if (onFoot) {
+  // Round 25 (bug #4): the lead police car does not patrol or chase
+  // while Gito drives it.
+  if (!police.userData.adopted && onFoot) {
     // Round 22: wanted on foot means a real pursuit now — the lead unit
     // closes at 7 m/s (outrun it with the run button, not by walking).
     // No wanted, the old slow patrol drift stays.
@@ -350,25 +365,26 @@ function frame() {
       if (Math.hypot(npx2 - px, npz2 - pz) > 3.5) { police.position.x = npx2; police.position.z = npz2; }
       police.rotation.y = Math.PI;
     }
-  } else {
+  } else if (!police.userData.adopted) {
     police.position.x += ((px + 3.5) - police.position.x) * dt * chaseK;
     police.position.z += ((pz - 3) - police.position.z) * dt * chaseK;
     police.rotation.y = heading;
   }
-  if (wanted > 0 && !onFoot) {
+  if (!police2.userData.adopted && wanted > 0 && !onFoot) {
     police2.position.x += ((px - 3.5) - police2.position.x) * dt * 2.0;
     police2.position.z += ((pz - 6) - police2.position.z) * dt * 2.0;
     police2.rotation.y = heading;
-  } else if (wanted >= 1 && onFoot) { chaseOnFoot(police2, px - 3.5, pz - 6, 6.5, dt); }
+  } else if (!police2.userData.adopted && wanted >= 1 && onFoot) { chaseOnFoot(police2, px - 3.5, pz - 6, 6.5, dt); }
   // Round 23: patrol drives +z, so the unit faces +z — without this the
   // car kept whatever yaw the last chase left (usually 0: backwards).
-  else { police2.rotation.y = Math.PI; police2.position.z += dt * 5; if (police2.position.z > 210) police2.position.z = -210; }
+  else if (!police2.userData.adopted) { police2.rotation.y = Math.PI; police2.position.z += dt * 5; if (police2.position.z > 210) police2.position.z = -210; }
   // Round 24 (bug #5): wanted > 0 means EVERY police car hunts — the
   // old staged thresholds (3/4/5 stars) left cars patrolling past a
   // foot officer's post mid-chase, which read as a parked police car
   // with an officer standing beside it. All six chase from 1 star.
   [[police3, 6, -12, 1], [police4, -6, -16, 1], [police5, 2, -20, 1], [police6, -2, -24, 1]].forEach(function (u) {
     var pu = u[0];
+    if (pu.userData.adopted) return;
     if (wanted > 0 && !onFoot) {
       pu.position.x += ((px + u[1]) - pu.position.x) * dt * 2.0;
       pu.position.z += ((pz + u[2]) - pu.position.z) * dt * 2.0;
@@ -377,7 +393,8 @@ function frame() {
     // Round 23: same backwards-patrol fix as police2 — patrol drives +z.
     else { pu.rotation.y = Math.PI; pu.position.z += dt * 5; if (pu.position.z > 210) pu.position.z = -210; }
   });
-  taxi.position.z += dt * 7 * brakeK(taxi); if (taxi.position.z > 210) taxi.position.z = -210;
+  // Round 25 (bug #4): the taxi does not drive itself while adopted.
+  if (!taxi.userData.adopted) { taxi.position.z += dt * 7 * brakeK(taxi); if (taxi.position.z > 210) taxi.position.z = -210; }
   if (taxi.userData.brakeT > 0) taxi.userData.brakeT -= dt;
   if (cover && screen === 'drive') {
     police.position.set(-4, 0, pz - 14); police.rotation.y = heading;
@@ -441,7 +458,9 @@ function frame() {
   });
   // Round 19: downed NPCs get back up after 8 s (hp restored); hit
   // timers count down for every NPC list, not just the walking peds.
-  [peds, chatters, beachgoers].forEach(function (list) {
+  // Round 25 (bug #9): officers count here too, so a shot-down cop
+  // gets back up after 8 s instead of lying there forever.
+  [peds, chatters, beachgoers, officers].forEach(function (list) {
     list.forEach(function (pd) {
       if (pd.userData.downT > 0) { pd.userData.downT -= dt; if (pd.userData.downT <= 0) { pd.rotation.z = 0; pd.userData.hp = 100; } }
       if (pd.userData.hitT > 0) pd.userData.hitT -= dt;
@@ -477,6 +496,10 @@ function frame() {
       if (u.shotCd === undefined) { u.shotCd = oi * 0.37; u.shots = 0; u.shootT = 0; }
       if (u.shotCd > 0) u.shotCd -= dt;
       if (u.shootT > 0) u.shootT -= dt;
+      // Round 25 (bug #9): a downed officer lies still — no chase, no
+      // gunfire — until the down timer (counted with the other NPCs)
+      // runs out and he gets back up.
+      if (u.downT > 0) return;
       if (oi < chaseN) {
         var tx = px + (oi % 2 === 0 ? 2.5 : -2.5), tz = pz - 3 - oi * 2;
         chaseOnFoot(of, tx, tz, oi === 0 ? 7.0 : 6.5, dt);
@@ -485,6 +508,9 @@ function frame() {
         var sw = Math.sin(u.walk) * 0.55;
         u.legL.rotation.x = sw; u.legR.rotation.x = -sw;
         u.armL.rotation.x = -sw; u.armR.rotation.x = sw;
+        // Round 25 (bug #9): a hit officer throws his arms up, like a
+        // hit civilian — the chase pose used to overwrite the flinch.
+        if (u.hitT > 0) { u.armL.rotation.x = -2.4; u.armR.rotation.x = -2.4; }
         of.position.y = groundY(of.position.x, of.position.z);
         // Round 24: gunfire. Aim pose (right arm forward) while the
         // shot reads; the gun sits at chest height, 0.45 m ahead.
@@ -564,51 +590,72 @@ function frame() {
       if (keys.KeyD || keys.ArrowRight) str = -1;
       // Round 22: run — hold Shift (keyboard) or the run button (touch)
       // to sprint at 8.5 m/s forward; walking stays 5, reversing 2.5.
-      // Softer ramps than round 18 (12 up / 14 down) so starting and
-      // stopping feel gradual on a phone's binary touch buttons, and a
-      // slightly slower turn while sprinting so it does not twitch.
+      // Round 25 (tambahan P0): faster start (20 up / 14 down) — walking
+      // felt unresponsive because every stop forced a slow 0→5 m/s ramp;
+      // stopping still eases down gradually, and a slightly slower turn
+      // while sprinting so it does not twitch.
       var running = (keys.ShiftLeft || keys.ShiftRight) && mvT > 0;
       var targetSpeed = mvT * (running ? 8.5 : 5);
-      var accel = Math.abs(targetSpeed) > Math.abs(footSpeed) ? 12 : 14;
+      var accel = Math.abs(targetSpeed) > Math.abs(footSpeed) ? 20 : 14;
       footSpeed += Math.max(-accel * dt, Math.min(accel * dt, targetSpeed - footSpeed));
       var turnTarget = str * (running ? 1.9 : 2.2);
       turnVel += Math.max(-6 * dt, Math.min(6 * dt, turnTarget - turnVel));
       heading += turnVel * dt;
       // Movement follows the facing direction (-sin h, -cos h), so
       // walking east/west no longer goes backwards against the facing.
+      var ox = px, oz = pz;
       var step = footSpeed * dt;
-      var npx = px - Math.sin(heading) * step;
-      var npz = pz - Math.cos(heading) * step;
-      // Solid parked cars (round 18): the player coupe and the two
-      // parked cars on Avenue 1 are bodies now — walking into one stops
-      // at its flank instead of passing through. Only blocks ENTRY, so
-      // a player who spawns inside (dismount) can always walk back out.
-      // Round 22: the inactive coupe is listed too, so the car Gito is
-      // NOT driving stays solid instead of walk-through.
-      var blocked = false;
-      [[carX, carZ, carHeading], [player.position.x, player.position.z, player.rotation.y], [parked1.position.x, parked1.position.z, parked1.rotation.y], [parked2.position.x, parked2.position.z, parked2.rotation.y]].forEach(function (c) {
-        var dx = npx - c[0], dz = npz - c[1];
-        var lf = -dx * Math.sin(c[2]) - dz * Math.cos(c[2]);
-        var ls = -dx * Math.cos(c[2]) + dz * Math.sin(c[2]);
-        var dx0 = px - c[0], dz0 = pz - c[1];
-        var lf0 = -dx0 * Math.sin(c[2]) - dz0 * Math.cos(c[2]);
-        var ls0 = -dx0 * Math.cos(c[2]) + dz0 * Math.sin(c[2]);
-        if (Math.abs(lf) < 2.9 && Math.abs(ls) < 1.5 && !(Math.abs(lf0) < 2.9 && Math.abs(ls0) < 1.5)) blocked = true;
-      });
-      if (blocked) { npx = px; npz = pz; footSpeed = 0; }
-      if (walkable(npx, npz)) { px = npx; pz = npz; } else footSpeed = 0;
+      var mdx = -Math.sin(heading) * step;
+      var mdz = -Math.cos(heading) * step;
+      // Solid parked cars (round 18, tightened round 25): the player
+      // coupe and the two parked cars on Avenue 1 are bodies now —
+      // walking into one stops at its flank instead of passing
+      // through. Only blocks ENTRY, so a player who spawns inside
+      // (dismount) can always walk back out. Round 22: the inactive
+      // coupe is listed too, so the car Gito is NOT driving stays
+      // solid instead of walk-through. Round 25: the box is 4.8 x 2.4 m
+      // (was 5.8 x 3.0 m — the old box stopped the player 1.5 m short
+      // of the car's flank), and a blocked step SLIDES along the
+      // obstacle instead of dying: try the full step, then X-only,
+      // then Z-only, so a diagonal walk along a wall or a parked car
+      // keeps moving instead of sticking.
+      var carBoxed = function (x, z) {
+        var inside = false;
+        [[carX, carZ, carHeading], [player.position.x, player.position.z, player.rotation.y], [parked1.position.x, parked1.position.z, parked1.rotation.y], [parked2.position.x, parked2.position.z, parked2.rotation.y]].forEach(function (c) {
+          var dx = x - c[0], dz = z - c[1];
+          var lf = -dx * Math.sin(c[2]) - dz * Math.cos(c[2]);
+          var ls = -dx * Math.cos(c[2]) + dz * Math.sin(c[2]);
+          var dx0 = px - c[0], dz0 = pz - c[1];
+          var lf0 = -dx0 * Math.sin(c[2]) - dz0 * Math.cos(c[2]);
+          var ls0 = -dx0 * Math.cos(c[2]) + dz0 * Math.sin(c[2]);
+          if (Math.abs(lf) < 2.4 && Math.abs(ls) < 1.2 && !(Math.abs(lf0) < 2.4 && Math.abs(ls0) < 1.2)) inside = true;
+        });
+        return inside;
+      };
+      var stepFree = function (x, z) { return walkable(x, z) && !carBoxed(x, z); };
+      if (stepFree(px + mdx, pz + mdz)) { px += mdx; pz += mdz; }
+      else if (stepFree(px + mdx, pz)) { px += mdx; }
+      else if (stepFree(px, pz + mdz)) { pz += mdz; }
+      else footSpeed = 0;
       // Round 24 (bug #2): a sprint steps FASTER, not just further —
       // 3.6 rad/m at a run vs 2.2 walking, so the cadence reads as
       // running even before the pose does.
-      walkPhase += step * (running ? 3.6 : 2.2);
+      // Round 25: advance from the distance ACTUALLY travelled, so the
+      // leg swing follows the feet while sliding along a wall or car
+      // (a blocked axis contributes nothing); backward stays negative.
+      var fwd = (px - ox) * (-Math.sin(heading)) + (pz - oz) * (-Math.cos(heading));
+      walkPhase += fwd * (running ? 3.6 : 2.2);
       // Traffic hits the player on foot (round 18): a car no longer
       // passes through the body. On contact the player is knocked clear
       // of the car's path, takes damage through the normal armour/health
       // path, the car brakes hard, and the police notice.
-      if (playing && !cover) {
+      // Round 25 (bug #1): no hit at all during the spawn grace — and
+      // never from the player's own car (an adopted car sits in this
+      // list, so without the exclusion it would hit its own driver).
+      if (playing && !cover && t > spawnSafeT) {
         var hitCar = null;
         traffic.concat(aveTraffic).concat(ave2Traffic).concat(ave3Traffic).concat(crossTraffic).concat(bikeTraffic).concat([taxi, police, police2, police3, police4, police5, police6]).forEach(function (o) {
-          if (!hitCar && Math.hypot(o.position.x - px, o.position.z - pz) < 2.6) hitCar = o;
+          if (!hitCar && o !== carMesh && Math.hypot(o.position.x - px, o.position.z - pz) < 2.6) hitCar = o;
         });
         if (hitCar && sparkT <= 0) {
           // Round 22: a traffic hit knocks Gito clear, plays the thud,
@@ -691,6 +738,9 @@ function frame() {
       if (!nearRide && carMesh !== player && Math.hypot(player.position.x - px, player.position.z - pz) < 4) nearRide = { x: player.position.x, z: player.position.z };
       if (!nearRide && carMesh !== parked1 && Math.hypot(parked1.position.x - px, parked1.position.z - pz) < 4) nearRide = { x: parked1.position.x, z: parked1.position.z };
       if (!nearRide && carMesh !== parked2 && Math.hypot(parked2.position.x - px, parked2.position.z - pz) < 4) nearRide = { x: parked2.position.x, z: parked2.position.z };
+      // Round 25 (bug #4): the MASUK pill + arrow show for an adoptable
+      // car too, so the player can see it is enterable before pressing E.
+      if (!nearRide) { var ad = nearestAdoptable(4); if (ad) nearRide = { x: ad.position.x, z: ad.position.z }; }
       if (!nearRide) { var wv2 = nearestVeh(motorboats.concat(jetskis), 6); if (wv2) nearRide = { x: wv2.position.x, z: wv2.position.z }; }
       if (!nearRide) { var bk2 = nearestVeh(bikes, 4); if (bk2) nearRide = { x: bk2.position.x, z: bk2.position.z }; }
       if (enterEl) { enterEl.style.display = (nearRide && !talking) ? 'block' : 'none'; if (nearRide && !talking) enterEl.textContent = 'MASUK'; }
@@ -700,7 +750,7 @@ function frame() {
       // Dialogue itself starts only on E (tryEnter) — walking up does not
       // auto-start it.
       var mTalk = curMission();
-      if (playing && !cover && mTalk && missionStage === 'talk' && Math.hypot(mTalk.giverObj.position.x - px, mTalk.giverObj.position.z - pz) < 3.5) {
+      if (playing && !cover && mTalk && missionStage === 'talk' && Math.hypot(mTalk.giverObj.position.x - px, mTalk.giverObj.position.z - pz) < 4.5) {
         if (talkEl) { document.getElementById('talkLabel').textContent = 'Talk to ' + mTalk.giver; talkEl.style.display = 'block'; }
       } else if (talkEl) talkEl.style.display = 'none';
     } else if (rideMode === 'boat' || rideMode === 'jetski') {
@@ -771,9 +821,9 @@ function frame() {
     kmh = Math.round(rideSpeed * 3.6);
     var hitB = false;
     traffic.concat([police, police2, police3, police4, police5, police6, taxi]).concat(bikeTraffic).forEach(function (o) {
-      if (Math.hypot(o.position.x - px, o.position.z - pz) < 3.0) hitB = true;
+      if (o !== carMesh && Math.hypot(o.position.x - px, o.position.z - pz) < 3.0) hitB = true;
     });
-    if (hitB && sparkT <= 0) { sparkT = 0.5; panicT = 1.2; raiseWanted(1); playThud(); }
+    if (hitB && sparkT <= 0 && t > spawnSafeT) { sparkT = 0.5; panicT = 1.2; raiseWanted(1); playThud(); }
     if (enterEl) { if (!cover) { enterEl.style.display = 'block'; enterEl.textContent = 'KELUAR'; } else enterEl.style.display = 'none'; }
     if (talkEl) talkEl.style.display = 'none';
   } else {
@@ -806,9 +856,10 @@ function frame() {
     kmh = Math.round(speed * 3.6);
     if (kmh > 130) raiseWanted(1); // speeding draws the police
     // Collision with traffic / police (bike traffic included).
+    // Round 25 (bug #4): never the car Gito is driving himself.
     var hit = false;
     traffic.concat([police, police2, police3, police4, police5, police6, taxi]).concat(bikeTraffic).forEach(function (o) {
-      if (Math.hypot(o.position.x - carX, o.position.z - carZ) < 3.4) hit = true;
+      if (o !== carMesh && Math.hypot(o.position.x - carX, o.position.z - carZ) < 3.4) hit = true;
     });
     // Round 22: a crash dents the CAR (condition falls) and draws the
     // police — it never costs Gito health or armour.
@@ -826,7 +877,12 @@ function frame() {
       }
     }
     var cmB = curMission();
-    if (playing && !cover && cmB && missionStage === 'do' && cmB.check && cmB.check.x !== undefined) {
+    if (playing && !cover && cmB && missionStage === 'talk') {
+      // Round 25 (bug #3): the giver gets the gold beam too — Luna
+      // stands 74 m from the spawn and the only pointer was a minimap
+      // dot, so Mission 1 read as stuck at Stage 1/2.
+      beacon.visible = true; beacon.position.set(cmB.giverObj.position.x, 0, cmB.giverObj.position.z);
+    } else if (playing && !cover && cmB && missionStage === 'do' && cmB.check && cmB.check.x !== undefined) {
       beacon.visible = true; beacon.position.set(cmB.check.x, 0, cmB.check.z);
     } else beacon.visible = false;
     if (playing && !cover && wantedT > 0) { wantedT -= dt; if (wantedT <= 0) wanted = 0; }
@@ -861,6 +917,11 @@ function frame() {
     updateHudExtra();
     if (spdNum) spdNum.textContent = kmh;
     updateAudio(kmh, wanted);
+  } else {
+    // Round 25 (bug #7): the menu had no sound at all because
+    // updateAudio only ran while playing — the ambient track was
+    // created on the first gesture but its gain was never raised.
+    updateAudio(0, wanted);
   }
 
   // The enter arrow bobs and scales with distance; its glow scales with

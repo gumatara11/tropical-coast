@@ -330,7 +330,7 @@ var gito = new THREE.Group();
   gito.userData = { armL: armL, armR: armR, legL: legL, legR: legR, head: head };
   gito.traverse(function (o) { if (o.isMesh) o.castShadow = true; });
 })();
-gito.position.set(-2.5, 0, 12);
+gito.position.set(10, 0, 12);
 scene.add(gito);
 
 // Luna: pink top with a real waist, blue jeans, magenta shoes, ponytail,

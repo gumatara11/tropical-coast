@@ -109,6 +109,14 @@
   #dlgbox { position: relative; background: rgba(20,20,30,.85); border: 2px solid rgba(255,255,255,.6); border-radius: 0 12px 12px 12px; color: #fff; font-size: 22px; line-height: 1.5; padding: 18px 44px 18px 22px; cursor: pointer; }
   #skipBtn { position: fixed; top: 16px; right: 16px; z-index: 6; background: rgba(20,20,30,.75); color: #fff; border: 2px solid #fff; border-radius: 10px; padding: 8px 16px; font-size: 20px; font-weight: 700; display: none; cursor: pointer; }
   #menuDlg { position: fixed; left: 5%; bottom: 5%; width: 60%; z-index: 6; display: none; }
+  /* Round 25: Settings / Credits panels + the pause menu — overlays
+     above the menu (z 6) and the HUD, hidden until opened. */
+  #settingsPanel, #creditsPanel, #pauseMenu { position: fixed; left: 50%; top: 50%; transform: translate(-50%,-50%); z-index: 7; display: none;
+    width: 520px; max-width: 86vw; background: rgba(20,20,30,.92); border: 2px solid rgba(255,255,255,.6); border-radius: 12px;
+    color: #fff; font-size: 20px; line-height: 1.5; padding: 22px 26px; }
+  #settingsPanel b, #creditsPanel b, #pauseMenu b { display: block; color: #ffd23f; font-size: 26px; font-weight: 900; margin-bottom: 10px; }
+  #settingsPanel .prow, #creditsPanel .prow { margin: 10px 0; }
+  #settingsPanel .mbtn, #creditsPanel .mbtn, #pauseMenu .mbtn { width: 100%; margin: 8px 0 0; }
   #menuDlgName { display: inline-block; background: #ff2a8a; color: #fff; font-weight: 900; font-size: 22px; padding: 4px 16px; border-radius: 8px 8px 0 0; }
   #menuDlgBox { position: relative; background: rgba(20,20,30,.85); border: 2px solid rgba(255,255,255,.6); border-radius: 0 12px 12px 12px; color: #fff; font-size: 20px; line-height: 1.5; padding: 18px 44px 18px 22px; cursor: pointer; }
   #muteBtn { position: fixed; top: 58px; right: 252px; z-index: 9; background: rgba(20,20,30,.75); color: #fff; border: 2px solid rgba(255,255,255,.6); border-radius: 10px; padding: 8px 14px; font-size: 18px; font-weight: 700; cursor: pointer; display: none; }
@@ -197,11 +205,14 @@
 <div id="menu">
   <div id="logo"><svg viewBox="0 0 360 88" aria-hidden="true"><rect x="8" y="42" width="34" height="46" fill="#111"/><rect x="46" y="30" width="26" height="58" fill="#111"/><rect x="76" y="50" width="30" height="38" fill="#111"/><rect x="110" y="22" width="28" height="66" fill="#ff2a8a"/><rect x="142" y="38" width="32" height="50" fill="#111"/><rect x="178" y="28" width="24" height="60" fill="#ff5a9a"/><rect x="206" y="46" width="30" height="42" fill="#111"/><rect x="240" y="34" width="26" height="54" fill="#111"/><path d="M316 88 Q322 56 316 36" stroke="#ffd23f" stroke-width="6" fill="none" stroke-linecap="round"/><path d="M316 36 Q294 20 274 26" stroke="#ffd23f" stroke-width="5" fill="none" stroke-linecap="round"/><path d="M316 36 Q300 12 286 8" stroke="#ffd23f" stroke-width="5" fill="none" stroke-linecap="round"/><path d="M316 36 Q316 10 318 2" stroke="#ffd23f" stroke-width="5" fill="none" stroke-linecap="round"/><path d="M316 36 Q332 14 346 10" stroke="#ffd23f" stroke-width="5" fill="none" stroke-linecap="round"/><path d="M316 36 Q338 24 354 22" stroke="#ffd23f" stroke-width="5" fill="none" stroke-linecap="round"/></svg>Tropical<span>Coast</span></div>
   <button class="mbtn primary" id="newGameBtn">▶ New Game</button>
-  <button class="mbtn">💾 Continue</button>
-  <button class="mbtn">⚙ Settings</button>
-  <button class="mbtn">🏆 Credits</button>
-  <button class="mbtn">⬅ Exit</button>
+  <button class="mbtn" id="continueBtn">💾 Continue</button>
+  <button class="mbtn" id="settingsBtn">⚙ Settings</button>
+  <button class="mbtn" id="creditsBtn">🏆 Credits</button>
+  <button class="mbtn" id="exitBtn">⬅ Exit</button>
 </div>
+<div id="settingsPanel"><b>⚙ Settings</b><div class="prow"><button class="mbtn" id="settingsMuteBtn">Sound: ON</button></div><div class="prow">WASD / arrows — move &amp; drive · E — enter / talk · Space — attack · 1-7 — weapons · Shift — run · M — mute · Esc / P — pause</div><button class="mbtn primary" id="settingsClose">Close</button></div>
+<div id="creditsPanel"><b>🏆 Credits</b><div class="prow">TROPICAL COAST — an open-world crime game built for the make.fun gta6-01 bounty.<br>Starring Gito &amp; Luna. Built with three.js; every sound is synthesized, no audio files.</div><button class="mbtn primary" id="creditsClose">Close</button></div>
+<div id="pauseMenu"><b>⏸ Paused</b><button class="mbtn primary" id="resumeBtn">▶ Resume</button><button class="mbtn" id="pauseSaveBtn">💾 Save</button><button class="mbtn" id="pauseQuitBtn">⬅ Quit to Menu</button></div>
 <div id="dialogue">
   <div><span id="dlgPortrait"></span><span id="dlgname">Gito</span></div>
   <div id="dlgbox">Finally, I'm back in Tropical Coast and I'm going to have fun here.<span class="dlgArrow">▼</span></div>

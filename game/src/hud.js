@@ -167,6 +167,10 @@ function updateHudExtra() {
     else {
       var stg = missionStage === 'talk' ? '1/2' : '2/2';
       var obj = missionStage === 'talk' ? 'Talk to ' + m.giver : m.objective;
+      // Round 25 (bug #3): show how far the target is — the panel used
+      // to say only "Talk to Luna" while she stood 74 m away.
+      var tgtD = missionStage === 'talk' ? Math.round(Math.hypot(m.giverObj.position.x - px, m.giverObj.position.z - pz)) : (m.check && m.check.x !== undefined ? Math.round(Math.hypot(m.check.x - px, m.check.z - pz)) : null);
+      if (tgtD !== null) obj += ' · ' + tgtD + 'm';
       var nxt = missionStage === 'talk' ? m.objective : (missions[missionIdx + 1] ? missions[missionIdx + 1].name : 'Free roam');
       var mph = '<b>MISSION ' + (missionIdx + 1) + ' · STAGE ' + stg + '</b><span class="mtitle">' + m.name + '</span><span>★ ' + obj + '</span><span class="mnext">NEXT ' + nxt + '</span><div class="stagebar">' + segs + '</div><span class="mtimer">' + timerTxt + '</span>';
     }
@@ -175,7 +179,7 @@ function updateHudExtra() {
   if (districtEl) { var da = districtAt(px, pz), sa = streetAt(px, pz); districtEl.textContent = (sa && sa !== da) ? sa + ' · ' + da : da; }
   if (clockEl) { var cmin = 16 * 60 + Math.floor(t); if (cmin !== lastClockMin) { lastClockMin = cmin; var ch = Math.floor(cmin / 60) % 24, cm2 = cmin % 60; clockEl.textContent = (ch < 10 ? '0' : '') + ch + ':' + (cm2 < 10 ? '0' : '') + cm2; } }
   if (starsEl) { var st = ''; for (var si = 0; si < 5; si++) st += si < wanted ? '★' : '<span class="dim">★</span>'; if (st !== lastStarsHtml) { starsEl.innerHTML = st; lastStarsHtml = st; } }
-  if (carInfoEl) { var cn = carMesh === parked1 ? 'CRIMSON GT' : (carMesh === parked2 ? 'AZURE GT' : 'COAST GT'); carInfoEl.textContent = cn + ' · CONDITION ' + carCond + '%'; }
+  if (carInfoEl) { var cn = carMesh.userData.driveName || (carMesh === parked1 ? 'CRIMSON GT' : (carMesh === parked2 ? 'AZURE GT' : 'COAST GT')); carInfoEl.textContent = cn + ' · CONDITION ' + carCond + '%'; }
   if (radioEl) radioEl.textContent = '♪ RADIO TROPICAL 98.6 — Island Pop';
   if (healthBarEl) healthBarEl.style.width = health + '%';
   if (armourBarEl) armourBarEl.style.width = (armour / 50 * 100) + '%';

@@ -1,6 +1,6 @@
 // Gameplay state, entering vehicles, missions and dialogue.
 // All dialogue text is locked — it is presented, never edited.
-var onFoot = true, speed = 0, px = -2.5, pz = 12, heading = 0, steer = 0;
+var onFoot = true, speed = 0, px = 10, pz = 12, heading = 0, steer = 0;
 // Round 18: smoothed on-foot movement state — footSpeed eases toward the
 // target instead of snapping, walkPhase advances with signed distance so
 // the leg swing follows the feet, turnVel eases the turn rate.
@@ -15,12 +15,25 @@ var rideMode = 'none', rideObj = null, rideHeading = 0, rideSpeed = 0;
 // positions and stay enterable + solid.
 var carMesh = player;
 // Read-only state hook for drive tests (no gameplay effect).
-window.__dbg = function () { return { carX: carX, carZ: carZ, carHeading: carHeading, speed: speed, steer: steer, rideMode: rideMode, rideSpeed: rideSpeed, onFoot: onFoot, px: px, pz: pz, heading: heading, frontWheelY: (carMesh.userData.frontWheels ? carMesh.userData.frontWheels[0].rotation.y : null), footSpeed: footSpeed, walkPhase: walkPhase, carMesh: carMesh === player ? 'coupe' : (carMesh === parked1 ? 'parked1' : 'parked2'), wantedT: wantedT }; };
+window.__dbg = function () { return { carX: carX, carZ: carZ, carHeading: carHeading, speed: speed, steer: steer, rideMode: rideMode, rideSpeed: rideSpeed, onFoot: onFoot, px: px, pz: pz, heading: heading, frontWheelY: (carMesh.userData.frontWheels ? carMesh.userData.frontWheels[0].rotation.y : null), footSpeed: footSpeed, walkPhase: walkPhase, carMesh: carMesh === player ? 'coupe' : (carMesh === parked1 ? 'parked1' : (carMesh === parked2 ? 'parked2' : (carMesh.userData.driveName || 'adopted'))), wantedT: wantedT }; };
 var sparkT = 0, panicT = 0;
 // Wanted level 0-5: a collision or speeding raises it, it decays after
 // 25 s without an incident. It drives the stars, the dispatch panel,
 // police aggression and the heli spotlight. Car condition falls on hits.
 var wanted = 0, wantedT = 0, carCond = 100;
+// Round 25 (bug #1): the old spawn (-2.5, 12) sat ON the coast-road
+// traffic lane — 0.5 m from the x=-3 lane, the taxi lane and the
+// police-2 patrol line — so a car drove through the player within
+// ~10 s of loading and raised wanted with no violation. The spawn
+// moved to the promenade (10, 12), clear of every lane and post, and
+// the first 6 s after entering the game are a grace window: traffic
+// contact cannot knock the player or raise wanted while he walks from
+// the spawn to his car.
+var spawnSafeT = 6;
+// Round 25 (bug #4): the car Gito adopted from traffic/police — the AI
+// must not keep driving it while he does. Null while he drives his own
+// coupe or a parked car; cleared when he gets out, so the AI resumes.
+var adoptedCar = null;
 var lastRaiseT = -99;
 // Health + armour: collisions damage armour first, then health; health
 // regens slowly once the heat is off. Ammo is the real pistol loadout.
@@ -88,7 +101,10 @@ function tryAttack() {
   attackT = 0.25; attackCd = res === 'reload' ? 0.9 : def.cd;
   var fx = -Math.sin(heading), fz = -Math.cos(heading);
   var best = null, bd = def.range;
-  peds.concat(chatters).concat(beachgoers).forEach(function (pd) {
+  // Round 25 (bug #9): officers are targets too — a cop shot before
+  // did nothing at all (no hp, no fall), so combat against the police
+  // could never be verified. They take damage and fall like any NPC.
+  peds.concat(chatters).concat(beachgoers).concat(officers).forEach(function (pd) {
     if (pd.userData.downT > 0) return;
     var dx = pd.position.x - px, dz = pd.position.z - pz;
     var d = Math.hypot(dx, dz);
@@ -106,7 +122,8 @@ function tryAttack() {
     if (walkable(nx, nz)) { best.position.x = nx; best.position.z = nz; }
     sparkT = 0.3;
     if (best.userData.hp <= 0) { best.userData.downT = 8; best.userData.hp = 100; best.rotation.z = Math.PI / 2; }
-    startFlee(best);
+    // Officers never flee — they chase back. Civilians run.
+    if (officers.indexOf(best) < 0) startFlee(best);
     raiseWanted(1);
   }
   if (def.gun) playShot(); else playThud();
@@ -135,11 +152,33 @@ function nearestVeh(list, maxD) {
   list.forEach(function (v) { var d = Math.hypot(v.position.x - px, v.position.z - pz); if (d < bd) { bd = d; best = v; } });
   return best;
 }
+// Round 25 (bug #4): cars the player can adopt with E — the 6 police
+// cars, the taxi, the 12 avenue/coast traffic cars and the 4
+// cross-street cars. Parked cars, bikes, boats and jetskis have their
+// own branches in tryEnter.
+var ADOPTABLE = null;
+function adoptableList() {
+  if (!ADOPTABLE) ADOPTABLE = [police, police2, police3, police4, police5, police6, taxi].concat(traffic, aveTraffic, ave2Traffic, ave3Traffic, crossTraffic);
+  return ADOPTABLE;
+}
+function nearestAdoptable(maxD) {
+  var best = null, bd = maxD;
+  adoptableList().forEach(function (v) {
+    if (v === carMesh) return;
+    var d = Math.hypot(v.position.x - px, v.position.z - pz);
+    if (d < bd) { bd = d; best = v; }
+  });
+  return best;
+}
 function tryEnter() {
   if (screen !== 'game' && screen !== 'drive') return;
   if (talking) { advanceTalk(); return; }
   var m = curMission();
-  if (onFoot && m && missionStage === 'talk' && Math.hypot(m.giverObj.position.x - px, m.giverObj.position.z - pz) < 3.5) { startTalk(m); return; }
+  // Round 25 (bug #3): the talk radius was 3.5 m while Luna stands
+  // 74 m from the spawn — close did not count, and nothing told the
+  // player how close was close enough. 4.5 m now, with a beacon and a
+  // distance readout (hud.js) pointing the way.
+  if (onFoot && m && missionStage === 'talk' && Math.hypot(m.giverObj.position.x - px, m.giverObj.position.z - pz) < 4.5) { startTalk(m); return; }
   if (onFoot) {
     var d = Math.hypot(carX - px, carZ - pz);
     if (d < 4) { onFoot = false; rideMode = 'car'; gito.visible = false; speed = 0; return; }
@@ -156,6 +195,21 @@ function tryEnter() {
       carMesh = pk; carX = pk.position.x; carZ = pk.position.z; carHeading = pk.rotation.y;
       onFoot = false; rideMode = 'car'; gito.visible = false; speed = 0; return;
     }
+    // Round 25 (bug #4): adopt a police car, the taxi or a traffic car
+    // — the README always said "drive anything". Taking one stops its
+    // AI (userData.adopted) so it drives exactly like the coupe; the
+    // drive branch + solid-body list already run off carX/carZ. A moving
+    // car is taken from where it is, at its heading.
+    var adopt = nearestAdoptable(4);
+    if (adopt) {
+      if (adopt === taxi) adopt.userData.driveName = 'TAXI';
+      else if (adopt === police || adopt === police2 || adopt === police3 || adopt === police4 || adopt === police5 || adopt === police6) adopt.userData.driveName = 'POLICE CRUISER';
+      else adopt.userData.driveName = 'CITY CAR';
+      adoptedCar = adopt; carMesh = adopt;
+      adopt.userData.adopted = true;
+      carX = adopt.position.x; carZ = adopt.position.z; carHeading = adopt.rotation.y;
+      onFoot = false; rideMode = 'car'; gito.visible = false; speed = 0; return;
+    }
     // Boats + jetskis: board from the shallows (radius 6, wade to x 34).
     // Gito stays visible on water vehicles and bikes — the per-frame rider
     // pose seats him on the vehicle (the car hides him, he's inside).
@@ -164,6 +218,9 @@ function tryEnter() {
     var bk = nearestVeh(bikes, 4);
     if (bk) { onFoot = false; rideMode = 'bike'; rideObj = bk; rideHeading = bk.rotation.y; rideSpeed = 0; return; }
   } else {
+    // Hand an adopted car back to its AI when Gito gets out — it
+    // resumes patrolling/driving once it is no longer the active car.
+    if (adoptedCar) { adoptedCar.userData.adopted = false; adoptedCar = null; }
     if (rideMode === 'car') { px = carX + 2; pz = carZ + 2; heading = carHeading; }
     else if (rideMode === 'boat' || rideMode === 'jetski') { px = 29; pz = Math.max(-205, Math.min(205, rideObj.position.z)); heading = rideHeading; }
     else if (rideMode === 'bike') { px = rideObj.position.x + 2; pz = rideObj.position.z + 2; heading = rideHeading; rideObj.rotation.z = 0; }
@@ -253,9 +310,13 @@ function completeMission() {
     bannerEl.style.display = 'block';
   }
   bannerT = 3;
-  try { localStorage.setItem('tc-save', JSON.stringify({ mission: missionIdx, money: money })); } catch (e) {}
+  saveGame();
   updateObjective();
 }
+// Round 25 (bug #5): one save call for every save path — mission
+// complete, the pause menu's Save button.
+function saveGame() { try { localStorage.setItem('tc-save', JSON.stringify({ mission: missionIdx, money: money })); } catch (e) {} }
+function hasSave() { try { return !!localStorage.getItem('tc-save'); } catch (e) { return false; } }
 // Load saved progress (not in cover renders).
 if (!cover) { try { var sv = JSON.parse(localStorage.getItem('tc-save') || 'null'); if (sv) { missionIdx = sv.mission || 0; if (sv.money) setMoney(sv.money); } } catch (e) {} }
 updateObjective();
@@ -269,10 +330,53 @@ function setScreen(s) {
   document.getElementById('dialogue').style.display = s === 'dialogue' ? 'block' : 'none';
   document.getElementById('skipBtn').style.display = s === 'dialogue' ? 'block' : 'none';
   document.getElementById('menuDlg').style.display = s === 'menu' ? 'block' : 'none';
-  if (s === 'game' || s === 'drive') { onFoot = true; gito.visible = true; px = -2.5; pz = 12; heading = 0; speed = 0; carX = 0; carZ = 10; carHeading = 0; }
+  hidePanels();
+  var pm = document.getElementById('pauseMenu');
+  if (pm) pm.style.display = 'none';
+  if (s !== 'game' && s !== 'drive') paused = false;
+  if (s === 'menu') refreshMenuBtns();
+  if (s === 'game' || s === 'drive') { onFoot = true; gito.visible = true; px = 10; pz = 12; heading = 0; speed = 0; carX = 0; carZ = 10; carHeading = 0; spawnSafeT = t + 6; }
 }
-document.getElementById('startBtn').addEventListener('click', function () { setScreen('menu'); });
-document.getElementById('newGameBtn').addEventListener('click', function () { setScreen('dialogue'); });
+// Round 25 (bug #5/#6): the menu buttons other than New Game had no
+// handler at all — Continue, Settings, Credits and Exit were dead.
+// New Game also never reset progress: it kept the loaded save.
+function newGame() {
+  missionIdx = 0; missionStage = 'talk'; setMoney(5000);
+  try { localStorage.removeItem('tc-save'); } catch (e) {}
+  updateObjective();
+  setScreen('dialogue');
+}
+function refreshMenuBtns() {
+  var cb = document.getElementById('continueBtn');
+  if (cb) cb.style.opacity = hasSave() ? '1' : '0.45';
+}
+function showPanel(id) { hidePanels(); var el = document.getElementById(id); if (el) el.style.display = 'block'; }
+function hidePanels() { ['settingsPanel', 'creditsPanel'].forEach(function (id) { var el = document.getElementById(id); if (el) el.style.display = 'none'; }); }
+// Round 25 (bug #5): pause — Esc/P or the ☰ button. Freezes the sim
+// (render.js), offers Resume / Save / Quit to Menu. Never while
+// talking, so a dialogue cannot be paused mid-line.
+var paused = false;
+function setPaused(v) {
+  if (v && (screen !== 'game' && screen !== 'drive')) return;
+  if (v && talking) return;
+  paused = v;
+  var pm2 = document.getElementById('pauseMenu');
+  if (pm2) pm2.style.display = v ? 'block' : 'none';
+  if (v) Object.keys(keys).forEach(function (k) { keys[k] = false; });
+}
+function togglePause() { setPaused(!paused); }
+document.getElementById('startBtn').addEventListener('click', function () { startAudio(); setScreen('menu'); });
+document.getElementById('newGameBtn').addEventListener('click', function () { startAudio(); newGame(); });
+document.getElementById('continueBtn').addEventListener('click', function () { startAudio(); if (hasSave()) { try { var sv = JSON.parse(localStorage.getItem('tc-save') || 'null'); if (sv) { missionIdx = sv.mission || 0; if (sv.money) setMoney(sv.money); updateObjective(); } } catch (e) {} setScreen('game'); } });
+document.getElementById('settingsBtn').addEventListener('click', function () { startAudio(); showPanel('settingsPanel'); });
+document.getElementById('creditsBtn').addEventListener('click', function () { startAudio(); showPanel('creditsPanel'); });
+document.getElementById('exitBtn').addEventListener('click', function () { startAudio(); setScreen('splash'); });
+document.getElementById('settingsClose').addEventListener('click', function () { hidePanels(); });
+document.getElementById('creditsClose').addEventListener('click', function () { hidePanels(); });
+document.getElementById('settingsMuteBtn').addEventListener('click', function () { startAudio(); var mm = toggleMute(); document.getElementById('settingsMuteBtn').textContent = mm ? 'Sound: OFF' : 'Sound: ON'; });
+document.getElementById('resumeBtn').addEventListener('click', function () { setPaused(false); });
+document.getElementById('pauseSaveBtn').addEventListener('click', function () { saveGame(); var b2 = document.getElementById('pauseSaveBtn'); b2.textContent = '✓ Saved'; setTimeout(function () { b2.textContent = '💾 Save'; }, 1200); });
+document.getElementById('pauseQuitBtn').addEventListener('click', function () { setPaused(false); setScreen('menu'); });
 document.getElementById('skipBtn').addEventListener('click', function () { setScreen('game'); });
 document.getElementById('dlgbox').addEventListener('click', function () { setScreen('game'); });
 document.getElementById('menuDlgBox').addEventListener('click', function () { setScreen('dialogue'); });
@@ -283,3 +387,4 @@ document.getElementById('menu').style.display = screen === 'menu' ? 'block' : 'n
 document.getElementById('dialogue').style.display = screen === 'dialogue' ? 'block' : 'none';
 document.getElementById('skipBtn').style.display = screen === 'dialogue' ? 'block' : 'none';
 document.getElementById('menuDlg').style.display = screen === 'menu' ? 'block' : 'none';
+refreshMenuBtns();

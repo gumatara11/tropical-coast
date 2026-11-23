@@ -6,6 +6,8 @@ var keys = {};
 window.addEventListener('keydown', function (e) {
   keys[e.code] = true;
   if (e.code === 'KeyE') tryEnter();
+  // Round 25: Esc / P opens the pause menu (Resume / Save / Quit).
+  if (e.code === 'Escape' || e.code === 'KeyP') togglePause();
   // Round 19: attack — Space punches / fires the selected weapon, keys
   // 1-7 pick a weapon. (The game shipped with weapon slots on the HUD
   // but no attack input at all, so Gito could not punch.)
@@ -46,6 +48,9 @@ if (enterBtnEl) {
   enterBtnEl.addEventListener('click', function (e) { e.preventDefault(); startAudio(); tryEnter(); });
 }
 bindCtl('cl1', 'KeyA'); bindCtl('cl2', 'KeyD'); bindCtl('cr1', 'KeyW'); bindCtl('cr2', 'KeyS');
+// Round 25: the ☰ button opens the pause menu (it did nothing before).
+var pauseBtnEl = document.getElementById('cr3');
+if (pauseBtnEl) pauseBtnEl.addEventListener('click', function () { startAudio(); togglePause(); });
 // Round 19: the attack button — big, on the right above the menu key,
 // tap (touch) or click (mouse) to punch / fire. Touchstart + mousedown
 // (not click) so one tap fires exactly once.

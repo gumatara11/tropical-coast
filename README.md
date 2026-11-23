@@ -13,9 +13,9 @@ Eight districts across a 410 m coastline: the Promenade and its beach, the Harbo
 ## What you can do
 
 - **Explore on foot** — walk the promenade, the beach and all 8 districts, past 38 pedestrians, beachgoers, sunbathers, swimmers and chatters.
-- **Drive anything** — the yellow COAST GT sport coupe (with real steering, front wheels that turn, reverse and a ~8 m turn radius), 6 police cars, a taxi, 12 traffic cars, 16 parked bikes (PCJ-style sport bikes and Faggio-style Vespas, all enterable), 8 traffic bikes, 3 motorboats, 3 jetskis and a tour helicopter circling the beach.
-- **Missions and story** — three missions with dialogue: Welcome Back (talk to Luna, take the car, +$200), Harbor Delivery (Ray at the harbor, deliver to the Night Club, +$500), Night Out (Max the bouncer, drive to the pier, +$800), then free roam. Progress saves to localStorage.
-- **Wanted level** — collisions and speeding over 130 km/h raise your stars (0–5). Police cars pursue, flank and ram, the police helicopter hunts you with a spotlight, and the dispatch panel tracks all 7 units live.
+- **Drive anything** — the yellow COAST GT sport coupe (with real steering, front wheels that turn, reverse and a ~8 m turn radius), 6 police cars, a taxi, 12 traffic cars + 4 cross-street cars (walk up to any of them and press E to take it), 16 parked bikes (PCJ-style sport bikes and Faggio-style Vespas, all enterable), 9 traffic bikes, 3 motorboats, 3 jetskis and a tour helicopter circling the beach.
+- **Missions and story** — three missions with dialogue: Welcome Back (talk to Luna, take the car, +$200), Harbor Delivery (Ray at the harbor, deliver to the Night Club, +$500), Night Out (Max the bouncer, drive to the pier, +$800), then free roam. A gold beacon marks your current objective — the mission giver while a talk is due, the destination once you're on the job. Progress saves to localStorage (Continue on the menu, or Save in the pause menu — Esc/P or ☰).
+- **Wanted level** — collisions and speeding over 130 km/h raise your stars (0–5). Police cars pursue, flank and ram, the police helicopter hunts you with a spotlight, and the dispatch panel tracks all 13 responding units live (6 police cars, 6 foot officers, the helicopter).
 - **Combat and HUD** — 7 weapon slots (pistol with real ammo 12/60, SMG, shotgun, rifle, sniper, bat, fists), health and armour bars that regenerate out of trouble, a speedometer, a live minimap, a mission panel with a stage timer, a district readout, car condition, and Radio Tropical 98.6. Synthesized WebAudio: engine hum that follows speed, a two-tone police siren while wanted, and a thud on impact (M or the speaker button mutes).
 
 ## Controls
@@ -26,6 +26,7 @@ Eight districts across a 410 m coastline: the Promenade and its beach, the Harbo
 | S / ↓ | Brake / reverse / walk back |
 | A / D or ← / → | Steer / turn |
 | E | Enter a vehicle, talk to a mission giver, advance dialogue |
+| Esc / P or ☰ | Pause menu (Resume / Save / Quit to Menu) |
 | M | Mute / unmute |
 | Touch | On-screen buttons on mobile |
 

@@ -5,6 +5,7 @@
 // (or M) silences the master gain. Safe to call before audio is ready.
 var audioCtx = null, masterGain = null, engineOsc = null, engineGain = null;
 var sirenOsc = null, sirenGain = null, sirenLfo = null, audioMuted = false;
+var ambientOsc = null, ambientOsc2 = null, ambientGain = null;
 function startAudio() {
   if (audioCtx) { if (audioCtx.state === 'suspended') audioCtx.resume(); return; }
   try {
@@ -23,6 +24,15 @@ function startAudio() {
     sirenGain = audioCtx.createGain(); sirenGain.gain.value = 0;
     sirenOsc.connect(sirenGain); sirenGain.connect(masterGain);
     sirenOsc.start(); sirenLfo.start();
+    // Round 25 (bug #7): a quiet menu ambience — the menu was dead
+    // silent even after the first gesture, because the engine hum is 0
+    // at standstill and the siren is 0 with no wanted level. Two soft
+    // detuned sines, barely there, only off the gameplay screens.
+    ambientOsc = audioCtx.createOscillator(); ambientOsc.type = 'sine'; ambientOsc.frequency.value = 220;
+    ambientOsc2 = audioCtx.createOscillator(); ambientOsc2.type = 'sine'; ambientOsc2.frequency.value = 277;
+    ambientGain = audioCtx.createGain(); ambientGain.gain.value = 0;
+    ambientOsc.connect(ambientGain); ambientOsc2.connect(ambientGain); ambientGain.connect(masterGain);
+    ambientOsc.start(); ambientOsc2.start();
   } catch (e) { audioCtx = null; }
 }
 // Called once per frame from the loop with the current speed and wanted
@@ -33,6 +43,9 @@ function updateAudio(kmh, wantedLevel) {
   engineGain.gain.setTargetAtTime(target, audioCtx.currentTime, 0.1);
   engineOsc.frequency.setTargetAtTime(50 + kmh * 1.2, audioCtx.currentTime, 0.1);
   sirenGain.gain.setTargetAtTime(wantedLevel > 0 ? 0.05 : 0, audioCtx.currentTime, 0.3);
+  // Round 25 (bug #7): ambience only on menu/splash/dialogue — silent
+  // in game, where the engine + siren carry the sound.
+  if (ambientGain) ambientGain.gain.setTargetAtTime((screen === 'game' || screen === 'drive') ? 0 : 0.035, audioCtx.currentTime, 0.5);
 }
 function playThud() {
   if (!audioCtx || !masterGain) return;
