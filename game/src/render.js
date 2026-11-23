@@ -127,6 +127,65 @@ function optimizeScene() {
 }
 optimizeScene();
 function brakeK(o) { return o.userData.brakeT > 0 ? 0.25 : 1; }
+// Round 24: traffic separation — same-lane cars used to rear-end each
+// other (each lane runs several cars at DIFFERENT speeds: coast x=-3 runs
+// 6/8/10 m/s, x=3 runs 7/9, every avenue runs 5/7/9, bikes up to 23 —
+// with no spacing logic the fast car behind always caught the slow car
+// ahead, and patrol police cars at 5 m/s sat IN the traffic lanes).
+// After every traffic move, enforce a 6.5 m circular gap (track wraps
+// z 210 -> -210, so the gap is measured on the 420 m loop) between any
+// two vehicles in the same lateral band (|dx| < 2.5): the follower is
+// held back to leader.z - 6.5, so it effectively matches the leader's
+// speed instead of driving through it. No speed is changed, no rnd().
+var ZTRACK = 420, ZGAP = 6.5;
+function separateTraffic(list) {
+  for (var i = 0; i < list.length; i++) {
+    var f = list[i];
+    for (var j = 0; j < list.length; j++) {
+      if (i === j) continue;
+      var l = list[j];
+      if (Math.abs(l.position.x - f.position.x) >= 2.5) continue;
+      var g = l.position.z - f.position.z;
+      if (g < 0) g += ZTRACK;
+      if (g > 0 && g < ZGAP) {
+        f.position.z = l.position.z - ZGAP;
+        if (f.position.z < -210) f.position.z += ZTRACK;
+      }
+    }
+  }
+}
+// Round 24: a cross-street car yields instead of driving through
+// north-south traffic at the intersection — true while any z-vehicle is
+// inside the crossing box ahead of it.
+function crossBlocked(cx, cz) {
+  var all = traffic.concat(aveTraffic, ave2Traffic, ave3Traffic, bikeTraffic, [taxi, police, police2, police3, police4, police5, police6]);
+  for (var i = 0; i < all.length; i++) {
+    var o = all[i];
+    if (Math.abs(o.position.z - cz) < 5 && Math.abs(o.position.x - cx) < 10) return true;
+  }
+  return false;
+}
+// Round 24: shared cop-gunfire visuals — one muzzle flash + one tracer,
+// repositioned per shot (never created per shot). The flash is a bright
+// ball at the officer's gun; the tracer is a thin yellow box stretched
+// from the gun to the player's chest for one frame-window.
+var copFlash = new THREE.Mesh(new THREE.SphereGeometry(0.18, 8, 6), new THREE.MeshBasicMaterial({ color: 0xffe97a }));
+copFlash.visible = false; scene.add(copFlash);
+var copTracer = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 1), new THREE.MeshBasicMaterial({ color: 0xffe97a, transparent: true, opacity: 0.85 }));
+copTracer.visible = false; scene.add(copTracer);
+var copShots = 0, copHits = 0, copFlashT = 0;
+// Round 24: aim the shared tracer from (fx,fy,fz) at the player and show
+// the flash at the gun for 0.08 sim-s.
+function copFireFx(fx, fy, fz) {
+  copFlash.position.set(fx, fy, fz); copFlash.visible = true;
+  var dx = px - fx, dy = 1.1 - fy, dz = pz - fz;
+  var d = Math.hypot(dx, dy, dz) || 1;
+  copTracer.position.set((fx + px) / 2, (fy + 1.1) / 2, (fz + pz) / 2);
+  copTracer.scale.set(1, 1, d);
+  copTracer.lookAt(px, 1.1, pz);
+  copTracer.visible = true;
+  copFlashT = 0.12;
+}
 // Round 22: on-foot police pursuit — a unit closes on a target point at
 // a capped speed (m/s), sliding along walkable ground so it never clips
 // through buildings or into the sea. 7 m/s for the lead unit: faster
@@ -250,8 +309,14 @@ function frame() {
     tr.position.z += dt * (5 + i * 2) * brakeK(tr);
     if (tr.position.z > 210) tr.position.z = -210;
   });
-  crossTraffic[0].position.x += dt * 8 * brakeK(crossTraffic[0]); if (crossTraffic[0].position.x > 8) crossTraffic[0].position.x = -58;
-  crossTraffic[1].position.x -= dt * 8 * brakeK(crossTraffic[1]); if (crossTraffic[1].position.x < -58) crossTraffic[1].position.x = 8;
+  // Round 24: every cross street carries a car now (one per street,
+  // dir in userData), the full width of the grid (x -158..8), and each
+  // car yields at intersections instead of crossing through traffic.
+  crossTraffic.forEach(function (ct) {
+    if (crossBlocked(ct.position.x, ct.position.z)) return;
+    if (ct.userData.dir > 0) { ct.position.x += dt * 8 * brakeK(ct); if (ct.position.x > 8) ct.position.x = -158; }
+    else { ct.position.x -= dt * 8 * brakeK(ct); if (ct.position.x < -158) ct.position.x = 8; }
+  });
   bikeTraffic.forEach(function (tr, i) {
     tr.position.z += dt * (7 + i * 2) * brakeK(tr);
     if (tr.position.z > 210) tr.position.z = -210;
@@ -259,6 +324,14 @@ function frame() {
   [traffic, aveTraffic, ave2Traffic, ave3Traffic, crossTraffic, bikeTraffic].forEach(function (list) {
     list.forEach(function (o) { if (o.userData.brakeT > 0) o.userData.brakeT -= dt; });
   });
+  // Round 24: keep the lanes separated (see separateTraffic above) —
+  // AFTER every vehicle has moved this frame, bikes included, so no
+  // vehicle renders one frame inside another. Patrol police cars join
+  // the coast-road set only while wanted is 0 — once wanted, they
+  // chase and are no longer lane traffic.
+  var sepList = traffic.concat(aveTraffic, ave2Traffic, ave3Traffic, bikeTraffic, [taxi]);
+  if (wanted === 0) sepList = sepList.concat([police, police2, police3, police4, police5, police6]);
+  separateTraffic(sepList);
   var chaseK = wanted > 0 ? 2.4 : 1.2;
   if (onFoot) {
     // Round 22: wanted on foot means a real pursuit now — the lead unit
@@ -266,8 +339,15 @@ function frame() {
     // No wanted, the old slow patrol drift stays.
     if (wanted > 0) chaseOnFoot(police, px + 3.5, pz - 3, 7.0, dt);
     else {
-      police.position.x += ((px - 4.2) - police.position.x) * dt * 0.8;
-      police.position.z += ((pz - 30) - police.position.z) * dt * 0.8;
+      // Round 24 (self-hunt #11): the old blind lerp to (px-4.2, pz-30)
+      // drove straight THROUGH the player whenever he stood between
+      // the car's start and its shadow spot (proven in the Round 24
+      // probe: police from (3.2,-2) ran over a player at (-8,-80) and
+      // raised wanted to 1 out of nowhere). Hold position if the next
+      // step would come within 3.5 m of the player.
+      var npx2 = police.position.x + ((px - 4.2) - police.position.x) * dt * 0.8;
+      var npz2 = police.position.z + ((pz - 30) - police.position.z) * dt * 0.8;
+      if (Math.hypot(npx2 - px, npz2 - pz) > 3.5) { police.position.x = npx2; police.position.z = npz2; }
       police.rotation.y = Math.PI;
     }
   } else {
@@ -279,13 +359,15 @@ function frame() {
     police2.position.x += ((px - 3.5) - police2.position.x) * dt * 2.0;
     police2.position.z += ((pz - 6) - police2.position.z) * dt * 2.0;
     police2.rotation.y = heading;
-  } else if (wanted >= 2 && onFoot) { chaseOnFoot(police2, px - 3.5, pz - 6, 6.5, dt); }
+  } else if (wanted >= 1 && onFoot) { chaseOnFoot(police2, px - 3.5, pz - 6, 6.5, dt); }
   // Round 23: patrol drives +z, so the unit faces +z — without this the
   // car kept whatever yaw the last chase left (usually 0: backwards).
   else { police2.rotation.y = Math.PI; police2.position.z += dt * 5; if (police2.position.z > 210) police2.position.z = -210; }
-  // Round 22: more stars, more hunters on foot too — police3/4 join at
-  // 3 stars, police5 at 4, police6 at 5 (the dispatch count follows).
-  [[police3, 6, -12, 3], [police4, -6, -16, 3], [police5, 2, -20, 4], [police6, -2, -24, 5]].forEach(function (u) {
+  // Round 24 (bug #5): wanted > 0 means EVERY police car hunts — the
+  // old staged thresholds (3/4/5 stars) left cars patrolling past a
+  // foot officer's post mid-chase, which read as a parked police car
+  // with an officer standing beside it. All six chase from 1 star.
+  [[police3, 6, -12, 1], [police4, -6, -16, 1], [police5, 2, -20, 1], [police6, -2, -24, 1]].forEach(function (u) {
     var pu = u[0];
     if (wanted > 0 && !onFoot) {
       pu.position.x += ((px + u[1]) - pu.position.x) * dt * 2.0;
@@ -369,20 +451,32 @@ function frame() {
   // pose + escape movement win while fleeT runs.
   updateFlee(peds, dt); updateFlee(chatters, dt); updateFlee(beachgoers, dt);
   // Round 23: foot officers — always visible on patrol near their post
-  // while wanted is 0; when wanted, the first N chase the player on
-  // foot (1 star: 2, 2: 3, 3: 4, 4: 5, 5: 6), lead at 7.0 m/s, the rest
-  // at 6.5 — both slower than the player's 8.5 m/s run, so Gito can
-  // still escape. When the heat dies they walk back to their post and
-  // resume patrol. Officers never damage the player: no damagePlayer
-  // call, no collision check — contact is just a near-miss.
+  // while wanted is 0; when wanted, they chase the player on foot,
+  // lead at 7.0 m/s, the rest at 6.5 — both slower than the player's
+  // 8.5 m/s run, so Gito can still escape. When the heat dies they walk
+  // back to their post and resume patrol. Contact is just a near-miss
+  // (no damage from touching an officer) — only their GUNFIRE hurts.
+  // Round 24 (bug #5): wanted > 0 means ALL SIX chase. The old staged
+  // chaseN (1 star: 2 officers) left the rest patrolling at their
+  // posts — one standing idle beside a police car mid-chase.
+  // Round 24 (bug #3): from 2 stars (GTA-style: 1 star is chase-only,
+  // guns come out at 2) a chasing officer SHOOTS — visible muzzle
+  // flash + tracer + gunshot sound, 4 damage a hit through the normal
+  // armour/health path, ~1.1 s between shots per officer, hit chance
+  // by range (close shots land, long ones often miss), so the player
+  // is threatened but can still outrun them at 8.5 m/s. No shooting
+  // while talking, in cover staging, or at 0-1 stars.
   // Facing note (#14): chaseOnFoot was built for CARS (front = -z
   // local), so a person steered by it faces backwards. Every branch
   // below re-sets rotation with the PERSON formula (front = +z local):
   // rotation.y = atan2(dx, dz) toward the target.
   (function () {
-    var chaseN = wanted >= 5 ? 6 : wanted >= 4 ? 5 : wanted >= 3 ? 4 : wanted >= 2 ? 3 : wanted >= 1 ? 2 : 0;
+    var chaseN = wanted >= 1 ? 6 : 0;
     officers.forEach(function (of, oi) {
       var u = of.userData;
+      if (u.shotCd === undefined) { u.shotCd = oi * 0.37; u.shots = 0; u.shootT = 0; }
+      if (u.shotCd > 0) u.shotCd -= dt;
+      if (u.shootT > 0) u.shootT -= dt;
       if (oi < chaseN) {
         var tx = px + (oi % 2 === 0 ? 2.5 : -2.5), tz = pz - 3 - oi * 2;
         chaseOnFoot(of, tx, tz, oi === 0 ? 7.0 : 6.5, dt);
@@ -392,9 +486,32 @@ function frame() {
         u.legL.rotation.x = sw; u.legR.rotation.x = -sw;
         u.armL.rotation.x = -sw; u.armR.rotation.x = sw;
         of.position.y = groundY(of.position.x, of.position.z);
+        // Round 24: gunfire. Aim pose (right arm forward) while the
+        // shot reads; the gun sits at chest height, 0.45 m ahead.
+        var od = Math.hypot(px - of.position.x, pz - of.position.z);
+        if (u.shootT > 0) { u.armR.rotation.x = -1.4; u.armL.rotation.x = -1.2; }
+        if (wanted >= 2 && !cover && playing && !talking && u.shotCd <= 0 && od < 28 && od > 2) {
+          u.shotCd = 1.1; u.shootT = 0.35; u.shots++;
+          copShots++;
+          var fx = of.position.x + Math.sin(of.rotation.y) * 0.45, fz = of.position.z + Math.cos(of.rotation.y) * 0.45;
+          copFireFx(fx, 1.35, fz);
+          playShot();
+          var hit = od < 14 || (u.shots % 2 === 0);
+          if (hit) { copHits++; damagePlayer(4); sparkT = 0.2; }
+        }
       } else {
+        // Round 24 (bug #1, ROOT CAUSE found by probe): the old code
+        // ran patrol only inside `else` of `dist-to-post > 1.5` — so
+        // the moment the beat carried an officer past 1.5 m, the
+        // return branch dragged him straight back. The beat was a
+        // 1.5 m cage in EVERY round (that is why Gito saw statues),
+        // and widening it to +/-18 m changed nothing. Now the return
+        // branch only runs when the officer is FAR from post (a chase
+        // just ended, > 19 m away — beyond the beat + margin), and
+        // the patrol itself walks INCREMENTALLY (no absolute
+        // post.z + pat teleport, which also jumped the officer).
         var dx = u.post.x - of.position.x, dz = u.post.z - of.position.z;
-        if (Math.hypot(dx, dz) > 1.5) {
+        if (Math.hypot(dx, dz) > 19) {
           chaseOnFoot(of, u.post.x, u.post.z, 3.0, dt);
           of.rotation.y = Math.atan2(u.post.x - of.position.x, u.post.z - of.position.z);
           u.walk += dt * 7;
@@ -403,24 +520,30 @@ function frame() {
           u.armL.rotation.x = -sw2; u.armR.rotation.x = sw2;
           of.position.y = groundY(of.position.x, of.position.z);
         } else {
-          // Patrol: walk back and forth along the sidewalk, +/-6 m
-          // around the post, facing the way they walk (a person
-          // walking +z faces rotation 0, walking -z faces PI).
-          u.pat += dt * 1.2 * u.patDir;
-          if (u.pat > 6) { u.pat = 6; u.patDir = -1; }
-          if (u.pat < -6) { u.pat = -6; u.patDir = 1; }
-          var nz = u.post.z + u.pat;
-          if (walkable(u.post.x, nz)) of.position.z = nz;
+          // Patrol: a REAL beat — +/-18 m along the sidewalk at
+          // 2.2 m/s, a brisk walk that reads as patrolling from
+          // across the street. pat is the LIVE offset (recomputed,
+          // never teleported); x eases back onto the sidewalk line
+          // if a chase left the officer offset sideways.
+          u.pat = of.position.z - u.post.z;
+          if (u.pat >= 18) u.patDir = -1;
+          else if (u.pat <= -18) u.patDir = 1;
+          of.position.z += dt * 2.2 * u.patDir;
+          if (of.position.z > u.post.z + 18) of.position.z = u.post.z + 18;
+          if (of.position.z < u.post.z - 18) of.position.z = u.post.z - 18;
+          of.position.x += (u.post.x - of.position.x) * Math.min(1, dt * 2);
           of.position.y = groundY(of.position.x, of.position.z);
           of.rotation.y = u.patDir > 0 ? 0 : Math.PI;
-          u.walk += dt * 5;
-          var sw3 = Math.sin(u.walk) * 0.4;
+          u.walk += dt * 7;
+          var sw3 = Math.sin(u.walk) * 0.45;
           u.legL.rotation.x = sw3; u.legR.rotation.x = -sw3;
           u.armL.rotation.x = -sw3; u.armR.rotation.x = sw3;
         }
       }
     });
   })();
+  // Round 24: cop muzzle flash + tracer live 0.12 sim-s per shot.
+  if (copFlashT > 0) { copFlashT -= dt; if (copFlashT <= 0) { copFlash.visible = false; copTracer.visible = false; } }
 
   // Player: on foot vs driving — only while playing or in cover staging.
   var kmh = 0;
@@ -474,7 +597,10 @@ function frame() {
       });
       if (blocked) { npx = px; npz = pz; footSpeed = 0; }
       if (walkable(npx, npz)) { px = npx; pz = npz; } else footSpeed = 0;
-      walkPhase += step * 2.2;
+      // Round 24 (bug #2): a sprint steps FASTER, not just further —
+      // 3.6 rad/m at a run vs 2.2 walking, so the cadence reads as
+      // running even before the pose does.
+      walkPhase += step * (running ? 3.6 : 2.2);
       // Traffic hits the player on foot (round 18): a car no longer
       // passes through the body. On contact the player is knocked clear
       // of the car's path, takes damage through the normal armour/health
@@ -504,11 +630,31 @@ function frame() {
       // bent, arms hanging asymmetrically, head tilted a touch, soft
       // breathing. While walking, the plain walk cycle.
       var idle = Math.abs(footSpeed) < 0.1;
-      // Round 22: the swing grows with speed (bigger at a sprint) so a
-      // run reads as a run, not a fast walk.
-      var wp = Math.sin(walkPhase) * 0.5 * Math.min(1.2, 0.25 + Math.abs(footSpeed) / 4);
+      // Round 24 (bug #2): a run must READ as a run — bigger leg swing
+      // (0.95 rad, thigh to ~55 deg), arms pumping hard in opposite
+      // phase, knees actually bending, elbows bent ~90 deg, body
+      // leaning INTO the run, and a small bounce. Speed stays 8.5 m/s
+      // exactly (verified Round 23); only the pose changes. Walking
+      // keeps the old gentle cycle.
+      var sprinting = running && Math.abs(footSpeed) > 5.5;
+      var wpAmp = sprinting ? 0.95 : 0.5 * Math.min(1.2, 0.25 + Math.abs(footSpeed) / 4);
+      var wp = Math.sin(walkPhase) * wpAmp;
       gito.userData.legL.rotation.x = idle ? -0.05 : wp; gito.userData.legR.rotation.x = idle ? 0.03 : -wp;
-      gito.userData.armL.rotation.x = idle ? -0.04 : -wp; gito.userData.armR.rotation.x = idle ? 0.05 : wp;
+      var armSw = sprinting ? Math.sin(walkPhase) * 0.85 : wp;
+      gito.userData.armL.rotation.x = idle ? -0.04 : -armSw; gito.userData.armR.rotation.x = idle ? 0.05 : armSw;
+      // Round 24 (self-hunt): Gito's REAL knee is leg.children[2] and
+      // his REAL elbow is arm.children[3]. The old code rotated
+      // children[1]/[2] — lathe meshes (thigh skin, cuff) — so knees
+      // never bent and elbows never pumped in ANY round; the run was
+      // stiff legs + straight arms, i.e. a fast walk. The knee bends
+      // most when its leg swings forward (sin negative for the left
+      // leg, positive for the right).
+      var kneeL = gito.userData.legL.children[2], kneeR = gito.userData.legR.children[2];
+      var elbL = gito.userData.armL.children[3], elbR = gito.userData.armR.children[3];
+      kneeL.rotation.x = idle ? 0 : (sprinting ? 0.75 * Math.max(0, -Math.sin(walkPhase)) : 0);
+      kneeR.rotation.x = idle ? 0.08 : (sprinting ? 0.75 * Math.max(0, Math.sin(walkPhase)) : 0);
+      elbL.rotation.x = sprinting ? -1.0 : -0.45; elbR.rotation.x = sprinting ? -1.0 : -0.45;
+      if (sprinting) gito.position.y += Math.abs(Math.sin(walkPhase)) * 0.07;
       // Idle arms angle OUTWARD (0.30 rad) — pivot at the shoulder so
       // the sleeve top stays merged with the torso while the hands hang
       // clear of the hips/thighs. Riding/staging poses restore the
@@ -518,13 +664,17 @@ function frame() {
       // knees/elbows, head tilt, YXZ lean). The walk branch only
       // overwrites thighs/shoulders, so a seated pose would otherwise
       // stick after dismounting (elbows rest at their built -0.25 bend).
-      // Round 22: a slight forward lean at a sprint (YXZ order, so the
+      // Round 24: a real forward lean at a sprint (YXZ order, so the
       // pitch leans forward instead of rolling sideways under yaw).
+      // Positive rotation.x pitches the top of the body toward local
+      // +z — the facing direction; the old -0.08 leaned BACKWARD, away
+      // from the run, which is why the sprint looked upright/stiff.
       var runLean = Math.min(1, Math.max(0, (Math.abs(footSpeed) - 5.5) / 3));
-      gito.rotation.order = runLean > 0 ? 'YXZ' : 'XYZ'; gito.rotation.x = runLean > 0 ? -0.08 * runLean : 0; gito.rotation.z = idle ? Math.sin(t * 1.2) * 0.012 : 0;
+      gito.rotation.order = runLean > 0 ? 'YXZ' : 'XYZ'; gito.rotation.x = runLean > 0 ? 0.22 * runLean : 0; gito.rotation.z = idle ? Math.sin(t * 1.2) * 0.012 : 0;
       gito.userData.head.rotation.x = 0; gito.userData.head.rotation.z = idle ? 0.03 : 0;
-      gito.userData.legL.children[1].rotation.x = 0; gito.userData.legR.children[1].rotation.x = idle ? 0.08 : 0;
-      gito.userData.armL.children[2].rotation.x = -0.25; gito.userData.armR.children[2].rotation.x = -0.25;
+      // Lathe meshes only (thigh skin / cuff): reset any riding tilt.
+      gito.userData.legL.children[1].rotation.x = 0; gito.userData.legR.children[1].rotation.x = 0;
+      gito.userData.armL.children[2].rotation.x = 0; gito.userData.armR.children[2].rotation.x = 0;
       // Round 19: attack swing — the right arm punches forward (fist/bat)
       // or raises to aim (guns) while attackT runs down.
       if (attackT > 0) {

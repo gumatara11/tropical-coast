@@ -956,3 +956,27 @@ signPlane(signTexture('AVENUE 3', '#2a6ad8', '#ffffff', false), 8, 2.4, -136, 9,
 box(0.4, 9, 0.4, 0x666666, -136.5, 4.5, -100);
 signPlane(signTexture('AVENUE 3', '#2a6ad8', '#ffffff', false), 8, 2.4, -120, 9, 100, -Math.PI / 2);
 box(0.4, 9, 0.4, 0x666666, -119.5, 4.5, 100);
+
+// ---- Round 24: the cross streets get names, lights and a destination ----
+// "Map masih kecil banget cuma 1 arah" — the grid already ran east-west,
+// but the cross streets were nameless, lightless and empty, so nobody
+// ever turned. Now each crossing with Avenue 3 has a traffic light on
+// the west sidewalk and a named sign on the east side, and Coral St
+// gains WEST MARKET: two stalls + bench + planter + bin on the north
+// side of the street, just east of Avenue 3. ALL fixed coordinates, no
+// seeded calls. Footprints verified clear: the x -117 east-row buildings
+// sit at z -95/-118, the x -106 dense row at z -76..-67 starts at
+// x -111 (stalls end at -114.5), the x -141 west houses are 20 m away.
+// The market sits on walkable city slab (x -158..-60), never on a road.
+[['PALM ROW', -163, '#2a6ad8'], ['CORAL STREET', -61, '#37b24a'], ['SUNSET BOULEVARD', 41, '#ff8a2a'], ['HARBOR LANE', 143, '#8a5aff']].forEach(function (cs) {
+  trafficLight(-135.5, cs[1]);
+  signPlane(signTextureFit(cs[0], cs[2], '#ffffff'), 8, 2.4, -120, 9, cs[1], -Math.PI / 2);
+  box(0.4, 9, 0.4, 0x666666, -119.5, 4.5, cs[1]);
+});
+r20stall(-119, -70, 'SPICES', 0xff8a2a, 0xff5a2a);
+r20stall(-115, -70, 'FRUIT', 0x37b24a, 0x37e07a);
+r20bench(-117, -73);
+r20planter(-121, -73);
+r20bin(-113, -73);
+signPlane(signTextureFit('WEST MARKET', '#ff8a2a', '#ffffff'), 8, 2.4, -117, 9, -70, -Math.PI / 2);
+box(0.4, 9, 0.4, 0x666666, -116.5, 4.5, -70);

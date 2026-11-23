@@ -47,18 +47,25 @@ function drawGauge(kmh) {
 var mm = document.getElementById('minimap');
 var mtx = mm.getContext('2d');
 function drawMap() {
+  // Round 24 (bug #6): the minimap used to show only x -37..+37, so
+  // Avenue 2, Avenue 3 and the whole west grid were invisible — the
+  // map LOOKED one-directional even on the HUD. Full-grid scale now:
+  // mx = 8 + (x+164)*0.8 (x -164..30), my = 8 + (z+205)*0.38.
   mtx.clearRect(0, 0, 170, 170);
   mtx.fillStyle = '#2a8a4a'; mtx.fillRect(0, 0, 170, 170);
-  mtx.fillStyle = '#1a7ac8'; mtx.fillRect(120, 0, 50, 170);
-  mtx.fillStyle = '#e8cf9a'; mtx.fillRect(100, 0, 20, 170);
-  mtx.fillStyle = '#3a3a4a'; mtx.fillRect(78, 0, 22, 170);
-  mtx.fillStyle = '#3a3a4a'; mtx.fillRect(4, 0, 22, 170);
-  [-163, -61, 41, 143].forEach(function (cz) { mtx.fillRect(4, 85 + cz * 0.45 - 2, 96, 4); });
-  mtx.fillStyle = '#4a4a5a'; mtx.fillRect(0, 0, 78, 170);
+  mtx.fillStyle = '#4a4a5a'; mtx.fillRect(0, 0, 133, 170);
+  mtx.fillStyle = '#1a7ac8'; mtx.fillRect(163, 0, 7, 170);
+  mtx.fillStyle = '#e8cf9a'; mtx.fillRect(150, 0, 13, 170);
+  mtx.fillStyle = '#3a3a4a';
+  mtx.fillRect(133, 0, 13, 170);
+  mtx.fillRect(110, 0, 8, 170);
+  mtx.fillRect(71, 0, 8, 170);
+  mtx.fillRect(33, 0, 8, 170);
+  [-163, -61, 41, 143].forEach(function (cz) { mtx.fillRect(8, 8 + (cz + 205) * 0.38 - 2, 138, 4); });
   mtx.fillStyle = '#ffd23f';
-  for (var i = 0; i < 8; i++) mtx.fillRect(88, 10 + i * 20, 2, 10);
+  for (var i = 0; i < 8; i++) mtx.fillRect(139, 10 + i * 20, 2, 10);
   function dot(x, z, col, r) {
-    var mx = 85 + x * 2.2, my = 85 + z * 0.45;
+    var mx = 8 + (x + 164) * 0.8, my = 8 + (z + 205) * 0.38;
     if (mx < 4 || mx > 166 || my < 4 || my > 166) return;
     mtx.fillStyle = col; mtx.beginPath(); mtx.arc(mx, my, r || 4, 0, 6.29); mtx.fill();
   }
@@ -94,6 +101,9 @@ var lastClockMin = -1;
 function districtAt(x, z) {
   if (x >= 30) return 'OCEAN';
   if (x >= 14) return 'BEACH';
+  // Round 24 (bug #6): West Market — the market square on the north
+  // side of Coral St, just east of Avenue 3.
+  if (x >= -124 && x <= -110 && z >= -76 && z <= -55) return 'WEST MARKET';
   if (x <= -110) return 'WESTSIDE';
   if (x <= -60 && x >= -110) {
     if (z < -145) return 'PELABUHAN';
@@ -115,7 +125,9 @@ function streetAt(x, z) {
   if (x >= -133 && x <= -123) return 'AVENUE 3';
   if (x >= 14 && x < 30) return 'MARINA ROW';
   if (x >= 30) return 'OPEN WATER';
-  for (var i = 0; i < crossZs.length; i++) if (z >= crossZs[i] - 5 && z <= crossZs[i] + 5) return 'CROSS ST';
+  // Round 24 (bug #6): the cross streets have names now, not 'CROSS ST'.
+  var crossNames = ['PALM ROW', 'CORAL STREET', 'SUNSET BOULEVARD', 'HARBOR LANE'];
+  for (var i = 0; i < crossZs.length; i++) if (z >= crossZs[i] - 5 && z <= crossZs[i] + 5) return crossNames[i];
   return '';
 }
 // Weapon slots: diagonal SVG gun silhouettes (a horizontal gun reads as a
@@ -188,14 +200,16 @@ function updateHudExtra() {
       var dh = '<b>POLICE DISPATCH <span class="live">● LIVE</span></b>';
       var st7 = '';
       for (var si7 = 0; si7 < 5; si7++) st7 += si7 < wanted ? '★' : '<span class="dim">★</span>';
-      var chasing = 1 + (wanted >= 2 ? 1 : 0) + (wanted >= 3 ? 2 : 0) + (wanted >= 4 ? 1 : 0) + (wanted >= 5 ? 1 : 0) + 1;
+      // Round 24 (bug #5): wanted > 0 means ALL units respond — 6
+      // police cars + 6 foot officers + the heli = 13.
+      var chasing = 13;
       dh += '<span class="dsub">' + st7 + ' · UNITS RESPONDING: ' + chasing + '</span>';
       units.forEach(function (u) {
         var dd = Math.round(Math.hypot(u[1].position.x - px, u[1].position.z - pz) / 5) * 5;
         var bw = Math.max(8, Math.round(100 - dd * 1.2));
         dh += '<span class="drow"><i>' + u[0] + '</i><span class="dbar"><i style="width:' + bw + '%"></i></span><b class="chip ' + u[3] + '">' + u[2] + '</b><em>' + dd + 'm</em></span>';
       });
-      dh += '<span class="more">+1 more unit · DELTA-9 PURSUIT</span>';
+      dh += '<span class="more">+7 more units · DELTA-9 PURSUIT</span>';
       dispatchEl.style.display = 'block';
       if (dh !== lastDispatchHtml) { dispatchEl.innerHTML = dh; lastDispatchHtml = dh; }
     } else dispatchEl.style.display = 'none';

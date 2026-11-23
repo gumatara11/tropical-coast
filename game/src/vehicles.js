@@ -322,11 +322,20 @@ var aveTraffic = [
   makeCar(0x8a2a5a, -32, 150, 'sedan')
 ];
 aveTraffic.forEach(function (a) { a.rotation.y = Math.PI; });
+// Round 24 (bug #6): EVERY cross street carries a car now — the old
+// two only ran on Coral St / Sunset Blvd and only over x -58..8, so the
+// east-west streets read as empty decoration. One car per cross street,
+// full grid width (x -158..8, see render.js), dir in userData.
 var crossTraffic = [
   makeCar(0x37e07a, -50, -61, 'coupe'),
-  makeCar(0xff5a2a, 0, 41, 'sedan')
+  makeCar(0xff5a2a, 0, 41, 'sedan'),
+  makeCar(0x2a9ad8, -50, -163, 'sedan'),
+  makeCar(0xffd23f, 0, 143, 'coupe')
 ];
-crossTraffic[0].rotation.y = -Math.PI / 2; crossTraffic[1].rotation.y = Math.PI / 2;
+crossTraffic[0].rotation.y = -Math.PI / 2; crossTraffic[0].userData.dir = 1;
+crossTraffic[1].rotation.y = Math.PI / 2; crossTraffic[1].userData.dir = -1;
+crossTraffic[2].rotation.y = -Math.PI / 2; crossTraffic[2].userData.dir = 1;
+crossTraffic[3].rotation.y = Math.PI / 2; crossTraffic[3].userData.dir = -1;
 var parked1 = makeCar(0xd82a2a, -29, 100, 'sport'); parked1.rotation.y = Math.PI;
 var parked2 = makeCar(0x2a9ad8, -35, -100, 'coupe'); parked2.rotation.y = 0;
 var ave2Traffic = [
