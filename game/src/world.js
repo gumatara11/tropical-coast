@@ -772,13 +772,78 @@ r20stall(12.8, 150, 'FLOWERS', 0x37b24a, 0x37e07a);
 // porch bungalow with overhang, and the pyramid-roof house() — each with
 // its own height, colour and facade. Fixed positions, no seeded calls;
 // 1 m+ clear of the x -106 dense-infill row and of every neighbour.
+// ---- Round 21: detailed house facades (Gito, 23 Nov) ----
+// Round 20's windows read as flat yellow squares and the houses had no
+// visible door. Framed windows (dark frame + lit glass + mullion cross),
+// a real ground-floor door with step + awning, and per-window details
+// (shutters / flower box / AC unit, deterministic by index). Fixed
+// positions, no seeded calls. All meshes use plain Lambert/Basic
+// materials so the Round 19 merge still folds them into the static
+// chunks (no new draw-call blow-up); the glass reuses winMatMid.
+var r21dark = new THREE.MeshLambertMaterial({ color: 0x3a2a1a });
+var r21shut = new THREE.MeshLambertMaterial({ color: 0x3f6a3f });
+var r21flower = new THREE.MeshLambertMaterial({ color: 0x2a6a2a });
+var r21boxwood = new THREE.MeshLambertMaterial({ color: 0x6a4a2a });
+var r21grey = new THREE.MeshLambertMaterial({ color: 0x9a9a9a });
+var r21gold = new THREE.MeshLambertMaterial({ color: 0xc8a83a });
+var r21leaf = new THREE.MeshLambertMaterial({ color: 0x6a2a2a });
+function r21win(fx, wy, wz, big, detail) {
+  // Ground-floor row reads larger; upper rows standard.
+  var gw = big ? 1.25 : 1.05, gh = big ? 1.55 : 1.3;
+  var fw = gw + 0.24, fh = gh + 0.24;
+  var fr = new THREE.Mesh(new THREE.BoxGeometry(0.07, fh, fw), r21dark);
+  fr.position.set(fx + 0.02, wy, wz); fr.castShadow = true; scene.add(fr);
+  var gl = new THREE.Mesh(new THREE.PlaneGeometry(gw, gh), winMatMid);
+  gl.position.set(fx + 0.1, wy, wz); gl.rotation.y = Math.PI / 2; scene.add(gl);
+  var mv = new THREE.Mesh(new THREE.BoxGeometry(0.03, gh, 0.07), r21dark);
+  mv.position.set(fx + 0.12, wy, wz); scene.add(mv);
+  var mh = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.07, gw), r21dark);
+  mh.position.set(fx + 0.12, wy, wz); scene.add(mh);
+  if (detail === 1) {
+    [-1, 1].forEach(function (s) {
+      var sh = new THREE.Mesh(new THREE.BoxGeometry(0.05, fh, 0.34), r21shut);
+      sh.position.set(fx + 0.04, wy, wz + s * (fw / 2 + 0.2)); scene.add(sh);
+    });
+  } else if (detail === 2) {
+    var fb = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.22, fw * 0.8), r21boxwood);
+    fb.position.set(fx + 0.15, wy - fh / 2 - 0.12, wz); scene.add(fb);
+    var fl = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.16, fw * 0.7), r21flower);
+    fl.position.set(fx + 0.17, wy - fh / 2 - 0.02, wz); scene.add(fl);
+  } else if (detail === 3) {
+    var ac = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.34, 0.62), r21grey);
+    ac.position.set(fx + 0.15, wy - fh / 2 - 0.2, wz); scene.add(ac);
+  }
+}
+function r21door(fx, zc, awnCol) {
+  [-0.75, 0.75].forEach(function (o) {
+    var post = new THREE.Mesh(new THREE.BoxGeometry(0.08, 2.5, 0.14), r21dark);
+    post.position.set(fx + 0.04, 1.25, zc + o); scene.add(post);
+  });
+  var lin = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.14, 1.64), r21dark);
+  lin.position.set(fx + 0.04, 2.5, zc); scene.add(lin);
+  var leaf = new THREE.Mesh(new THREE.BoxGeometry(0.07, 2.3, 1.36), r21leaf);
+  leaf.position.set(fx + 0.05, 1.15, zc); leaf.castShadow = true; scene.add(leaf);
+  [0.65, 1.65].forEach(function (py) {
+    var pan = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.7, 0.5), r21dark);
+    pan.position.set(fx + 0.09, py, zc); scene.add(pan);
+  });
+  var knob = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.09, 0.09), r21gold);
+  knob.position.set(fx + 0.11, 1.05, zc + 0.45); scene.add(knob);
+  var step = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.18, 1.9), r21grey);
+  step.position.set(fx + 0.35, 0.09, zc); step.receiveShadow = true; scene.add(step);
+  var awn = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.07, 2.0), new THREE.MeshLambertMaterial({ color: awnCol }));
+  awn.position.set(fx + 0.5, 2.75, zc); awn.rotation.z = -0.12; awn.castShadow = true; scene.add(awn);
+}
 function r20wins(fx, zc, d, h, n) {
+  var row = 0;
   for (var wy = 3.5; wy < h - 0.5; wy += 3) {
     for (var k = 0; k < n; k++) {
       var wz = zc - d / 2 + 1.2 + k * ((d - 2.4) / Math.max(1, n - 1));
-      var w = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 1.4), winMatMid);
-      w.position.set(fx + 0.06, wy, wz); w.rotation.y = Math.PI / 2; scene.add(w);
+      // Ground-floor centre is the door — no window there.
+      if (row === 0 && Math.abs(wz - zc) < 1.2) continue;
+      r21win(fx, wy, wz, row === 0, (row + k) % 4);
     }
+    row++;
   }
 }
 function r20flat(x, z, w, h, d, facade, tint, roofCol) {
@@ -807,6 +872,7 @@ function r20gable(x, z, w, h, d, col, roofCol) {
   s2.position.set(x + run / 2, h + rise / 2, z); s2.rotation.z = -ang; s2.castShadow = true; scene.add(s2);
   box(0.6, 1.6, 0.6, 0x8a5a4a, x + w * 0.28, h + rise * 0.5 + 0.5, z - d * 0.2);
   r20wins(x + w / 2, z, d, h, 2);
+  r21door(x + w / 2, z, roofCol);
 }
 function r20step(x, z, w, h, d, facade, tint) {
   texBox(w, h, d, facade, x, h / 2, z, tint);
@@ -814,6 +880,7 @@ function r20step(x, z, w, h, d, facade, tint) {
   texBox(w2, h2, d2, facade, x, h + h2 / 2, z, tint);
   box(0.15, 3, 0.15, 0x666666, x, h + h2 + 1.5, z);
   r20wins(x + w / 2, z, d, h, 3);
+  r21door(x + w / 2, z, 0x8a5a3a);
 }
 function r20porch(x, z, w, h, d, col, roofCol) {
   box(w, h, d, col, x, h / 2, z);
@@ -824,6 +891,7 @@ function r20porch(x, z, w, h, d, col, roofCol) {
     post.position.set(x + o[0] * (w / 2 + 0.9), h / 2, z + o[1] * (d / 2 + 0.9)); scene.add(post);
   });
   r20wins(x + w / 2, z, d, h, 2);
+  r21door(x + w / 2, z, roofCol);
 }
 // Four houses, each in a real z-gap of the x -92 dense row — clear of the
 // cross streets (z -163/-61/41/143), the port containers and warehouse,

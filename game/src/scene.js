@@ -34,7 +34,7 @@ scene.add(new THREE.HemisphereLight(C.hemiS, C.hemiG, variant === 'golden' ? 0.6
 // reflection path under the sun toward the camera, skyline right.
 var splashCamPos = new THREE.Vector3(14, 6, 38);
 var splashCamLook = new THREE.Vector3(62, 14, 216);
-var sunDisc = new THREE.Mesh(new THREE.CircleGeometry(18, 32), new THREE.MeshBasicMaterial({ color: C.disc, fog: false, side: THREE.DoubleSide }));
+var sunDisc = new THREE.Mesh(new THREE.CircleGeometry(22, 32), new THREE.MeshBasicMaterial({ color: C.disc, fog: false, side: THREE.DoubleSide }));
 sunDisc.position.set(200, 14, 210); sunDisc.lookAt(splashCamPos); scene.add(sunDisc);
 var sunGlow = new THREE.Mesh(new THREE.CircleGeometry(42, 32), new THREE.MeshBasicMaterial({ color: 0xff6a2a, transparent: true, opacity: 0.5, fog: false, side: THREE.DoubleSide }));
 sunGlow.position.set(200, 14, 208); sunGlow.lookAt(splashCamPos); scene.add(sunGlow);
@@ -59,9 +59,35 @@ if (variant === 'golden') {
     gg.fillStyle = grad2; gg.fillRect(0, 0, 256, 256);
     var gt2 = new THREE.CanvasTexture(gc); gt2.colorSpace = THREE.SRGBColorSpace;
     sunGlow.material.map = gt2; sunGlow.material.color.set(0xffffff); sunGlow.material.opacity = 1; sunGlow.material.needsUpdate = true;
-    sunGlow.scale.set(2.0, 2.0, 2.0);
-    var halo = new THREE.Mesh(new THREE.CircleGeometry(120, 32), new THREE.MeshBasicMaterial({ map: gt2, transparent: true, opacity: 0.5, fog: false, side: THREE.DoubleSide, depthWrite: false }));
+    sunGlow.scale.set(3.0, 3.0, 3.0);
+    var halo = new THREE.Mesh(new THREE.CircleGeometry(190, 32), new THREE.MeshBasicMaterial({ map: gt2, transparent: true, opacity: 0.6, fog: false, side: THREE.DoubleSide, depthWrite: false }));
     halo.position.set(0, 19, 274); halo.lookAt(0, 8, -100); scene.add(halo);
+    // Round 21: anamorphic flare — a wide warm horizontal streak plus a
+    // thin bright core, so the low sun reads as glare, not a flat disc.
+    var fc = document.createElement('canvas'); fc.width = 512; fc.height = 64;
+    var fg2 = fc.getContext('2d');
+    var fgrad = fg2.createLinearGradient(0, 0, 512, 0);
+    fgrad.addColorStop(0, 'rgba(255,140,40,0)'); fgrad.addColorStop(0.3, 'rgba(255,190,90,0.7)'); fgrad.addColorStop(0.5, 'rgba(255,245,220,1)'); fgrad.addColorStop(0.7, 'rgba(255,190,90,0.7)'); fgrad.addColorStop(1, 'rgba(255,140,40,0)');
+    fg2.fillStyle = fgrad; fg2.fillRect(0, 0, 512, 64);
+    var ft = new THREE.CanvasTexture(fc); ft.colorSpace = THREE.SRGBColorSpace;
+    var flare = new THREE.Mesh(new THREE.PlaneGeometry(420, 22), new THREE.MeshBasicMaterial({ map: ft, transparent: true, opacity: 0.95, fog: false, side: THREE.DoubleSide, depthWrite: false }));
+    flare.position.set(0, 19, 276); flare.lookAt(0, 8, -100); scene.add(flare);
+    var flareCore = new THREE.Mesh(new THREE.PlaneGeometry(340, 6), new THREE.MeshBasicMaterial({ map: ft, transparent: true, opacity: 1, fog: false, side: THREE.DoubleSide, depthWrite: false }));
+    flareCore.position.set(0, 19, 275.5); flareCore.lookAt(0, 8, -100); scene.add(flareCore);
+    // Round 21: faint secondary ghost discs — lens artefacts around the sun.
+    var ghost1 = new THREE.Mesh(new THREE.CircleGeometry(7, 24), new THREE.MeshBasicMaterial({ map: gt2, transparent: true, opacity: 0.28, fog: false, side: THREE.DoubleSide, depthWrite: false }));
+    ghost1.position.set(30, 36, 276); ghost1.lookAt(0, 8, -100); scene.add(ghost1);
+    var ghost2 = new THREE.Mesh(new THREE.CircleGeometry(4.5, 24), new THREE.MeshBasicMaterial({ map: gt2, transparent: true, opacity: 0.22, fog: false, side: THREE.DoubleSide, depthWrite: false }));
+    ghost2.position.set(-38, 6, 276); ghost2.lookAt(0, 8, -100); scene.add(ghost2);
+    // Round 21: warm haze band hugging the horizon under the sun.
+    var hc = document.createElement('canvas'); hc.width = 16; hc.height = 128;
+    var hg = hc.getContext('2d');
+    var hgrad = hg.createLinearGradient(0, 0, 0, 128);
+    hgrad.addColorStop(0, 'rgba(255,170,90,0)'); hgrad.addColorStop(0.55, 'rgba(255,170,90,0.35)'); hgrad.addColorStop(1, 'rgba(255,130,50,0.45)');
+    hg.fillStyle = hgrad; hg.fillRect(0, 0, 16, 128);
+    var ht = new THREE.CanvasTexture(hc); ht.colorSpace = THREE.SRGBColorSpace;
+    var haze = new THREE.Mesh(new THREE.PlaneGeometry(560, 34), new THREE.MeshBasicMaterial({ map: ht, transparent: true, opacity: 0.55, fog: false, side: THREE.DoubleSide, depthWrite: false }));
+    haze.position.set(0, 7, 272); haze.lookAt(0, 8, -100); scene.add(haze);
   })();
 }
 if (variant === 'day') { sunDisc.visible = false; sunGlow.visible = false; }
@@ -98,14 +124,15 @@ for (var gi = 0; gi < 12; gi++) {
 if (variant === 'sunset' || variant === 'golden') {
   var stk = variant === 'golden' ? 30 : 0;
   var streakSegs = [
-    [42.8 + stk, -52.4, 3, 45, 0.45], [50 + stk, -11, 5, 45, 0.6], [58.4 + stk, 37.3, 8, 45, 0.75]
+    [42.8 + stk, -52.4, 3, 45, 0.6], [50 + stk, -11, 5, 45, 0.75], [58.4 + stk, 37.3, 8, 45, 0.9],
+    [66 + stk, 80, 10, 45, 0.7], [74 + stk, 122, 12, 45, 0.55]
   ];
   streakSegs.forEach(function (sg) {
     var rp = new THREE.Mesh(new THREE.PlaneGeometry(sg[2], sg[3]), new THREE.MeshBasicMaterial({ color: 0xff8a2a, transparent: true, opacity: sg[4] }));
     rp.rotation.set(-Math.PI / 2, 0, 0.17); rp.position.set(sg[0], 0.06, sg[1]);
     scene.add(rp);
   });
-  var core = new THREE.Mesh(new THREE.PlaneGeometry(2, 140), new THREE.MeshBasicMaterial({ color: 0xffc23a, transparent: true, opacity: 0.8 }));
+  var core = new THREE.Mesh(new THREE.PlaneGeometry(3, 190), new THREE.MeshBasicMaterial({ color: 0xffc23a, transparent: true, opacity: 0.9 }));
   core.rotation.set(-Math.PI / 2, 0, 0.17); core.position.set(50 + stk, 0.08, -11);
   scene.add(core);
   if (screen === 'splash') {

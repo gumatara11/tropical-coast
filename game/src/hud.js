@@ -167,10 +167,14 @@ function updateHudExtra() {
         ['HARBOR-7', police5, 'ROADBLOCK', 'block'],
         ['AIR ONE', heli, 'SPOTLIGHT', 'spot']
       ];
-      var dh = '<b>POLICE DISPATCH · 7 UNITS</b>';
+      var dh = '<b>POLICE DISPATCH <span class="live">● LIVE</span></b>';
+      var st7 = '';
+      for (var si7 = 0; si7 < 5; si7++) st7 += si7 < wanted ? '★' : '<span class="dim">★</span>';
+      dh += '<span class="dsub">' + st7 + ' · UNITS RESPONDING: 7</span>';
       units.forEach(function (u) {
         var dd = Math.round(Math.hypot(u[1].position.x - px, u[1].position.z - pz) / 5) * 5;
-        dh += '<span class="drow"><i>' + u[0] + '</i><b class="chip ' + u[3] + '">' + u[2] + '</b><em>' + dd + 'm</em></span>';
+        var bw = Math.max(8, Math.round(100 - dd * 1.2));
+        dh += '<span class="drow"><i>' + u[0] + '</i><span class="dbar"><i style="width:' + bw + '%"></i></span><b class="chip ' + u[3] + '">' + u[2] + '</b><em>' + dd + 'm</em></span>';
       });
       dh += '<span class="more">+1 more unit · DELTA-9 PURSUIT</span>';
       dispatchEl.style.display = 'block';
