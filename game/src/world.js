@@ -704,3 +704,133 @@ function sailboat(x, z, col) {
   g.position.set(x, 0, z); scene.add(g); return g;
 }
 sailboat(70, -100, 0xff5a5a); sailboat(120, 80, 0x2ac8ff);
+
+// ---- Round 20: roadside life (Gito, 23 Nov 09:48) ----
+// "Perbaiki semuanya... dekorasi pinggir jalan supaya tidak terlihat
+// kosong". All fixed positions, no seeded calls. Decorations sit on the
+// two sidewalks and the promenade only — never on a road, never in an
+// alley lane, never near the menu/dialogue spots (Luna 22.5,-57.5;
+// photo spot 11.5,-60).
+function r20bench(x, z) {
+  var wood = new THREE.MeshLambertMaterial({ color: 0x8a6a3a });
+  var seat = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.14, 2.2), wood);
+  seat.position.set(x, 0.5, z); seat.castShadow = true; scene.add(seat);
+  var back = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.6, 2.2), wood);
+  back.position.set(x - 0.3, 0.85, z); back.castShadow = true; scene.add(back);
+  [-0.9, 0.9].forEach(function (o) {
+    var leg = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.5, 0.12), new THREE.MeshLambertMaterial({ color: 0x555555 }));
+    leg.position.set(x, 0.25, z + o); scene.add(leg);
+  });
+  return seat;
+}
+function r20planter(x, z) {
+  var pot = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.6, 0.9), new THREE.MeshLambertMaterial({ color: 0x9a9a9a }));
+  pot.position.set(x, 0.3, z); pot.castShadow = true; scene.add(pot);
+  var bush = new THREE.Mesh(new THREE.ConeGeometry(0.55, 1.1, 8), new THREE.MeshLambertMaterial({ color: 0x2a8a3a }));
+  bush.position.set(x, 1.1, z); bush.castShadow = true; scene.add(bush);
+  return pot;
+}
+function r20bin(x, z) {
+  var b = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.3, 0.9, 10), new THREE.MeshLambertMaterial({ color: 0x2a5a3a }));
+  b.position.set(x, 0.45, z); b.castShadow = true; scene.add(b); return b;
+}
+function r20stall(x, z, label, bg, awnCol) {
+  var counter = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.0, 2.4), new THREE.MeshLambertMaterial({ color: 0xffffff }));
+  counter.position.set(x, 0.5, z); counter.castShadow = true; scene.add(counter);
+  var stripe = new THREE.Mesh(new THREE.BoxGeometry(1.26, 0.3, 2.46), new THREE.MeshLambertMaterial({ color: bg }));
+  stripe.position.set(x, 0.85, z); scene.add(stripe);
+  [[-0.5, -1.1], [0.5, -1.1], [-0.5, 1.1], [0.5, 1.1]].forEach(function (o) {
+    var post = new THREE.Mesh(new THREE.BoxGeometry(0.08, 2.4, 0.08), new THREE.MeshLambertMaterial({ color: 0x8a6a3a }));
+    post.position.set(x + o[0], 1.2, z + o[1]); scene.add(post);
+  });
+  [-0.8, 0, 0.8].forEach(function (o, i) {
+    var slat = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.06, 0.9), new THREE.MeshBasicMaterial({ color: i % 2 === 0 ? awnCol : 0xffffff }));
+    slat.position.set(x, 2.45, z + o); slat.rotation.x = 0.12; slat.castShadow = true; scene.add(slat);
+  });
+  var sign = new THREE.Mesh(new THREE.PlaneGeometry(2.0, 0.7), new THREE.MeshBasicMaterial({ map: signTexture(label, '#1a1a2e', '#ffffff', false) }));
+  sign.position.set(x - 0.66, 1.9, z); sign.rotation.y = -Math.PI / 2; scene.add(sign);
+  return counter;
+}
+// Left sidewalk (x -11), clear of lamps, cross streets, bus stop, signs.
+[-150, -120, -90, -30, 10, 70, 110, 170].forEach(function (z) { r20bench(-11, z); });
+[-175, -135, -105, -75, -45, -15, 25, 85, 125, 185].forEach(function (z) { r20planter(-11, z); });
+[-160, -95, -40, 20, 80, 140].forEach(function (z) { r20bin(-13.5, z); });
+// Promenade (x 12..13), facing the sea, clear of palms and the photo spot.
+[-170, -30, 30, 100].forEach(function (z) { r20bench(12, z); });
+[-135, -40, 80, 160].forEach(function (z) { r20planter(12.5, z); });
+[-90, 0, 90, 170].forEach(function (z) { r20bin(13, z); });
+r20stall(12.8, -150, 'JUICE', 0xff8a2a, 0xff5a2a);
+r20stall(12.8, -20, 'SOUVENIR', 0x2a9ad8, 0x2ac8ff);
+r20stall(12.8, 60, 'ICE CREAM', 0xff5a8a, 0xff8ac8);
+r20stall(12.8, 150, 'FLOWERS', 0x37b24a, 0x37e07a);
+
+// ---- Round 20: varied west houses (Gito, 23 Nov 09:48) ----
+// "Perbanyak rumah atau gedung berbeda". The x -95 strip west of Avenue 2
+// was empty sky between the port, the residential houses, the factories
+// and the hill — fill it with houses that actually differ: flat roof with
+// parapet + balcony, pitched gable roof + chimney, stepped setback tower,
+// porch bungalow with overhang, and the pyramid-roof house() — each with
+// its own height, colour and facade. Fixed positions, no seeded calls;
+// 1 m+ clear of the x -106 dense-infill row and of every neighbour.
+function r20wins(fx, zc, d, h, n) {
+  for (var wy = 3.5; wy < h - 0.5; wy += 3) {
+    for (var k = 0; k < n; k++) {
+      var wz = zc - d / 2 + 1.2 + k * ((d - 2.4) / Math.max(1, n - 1));
+      var w = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 1.4), winMatMid);
+      w.position.set(fx + 0.06, wy, wz); w.rotation.y = Math.PI / 2; scene.add(w);
+    }
+  }
+}
+function r20flat(x, z, w, h, d, facade, tint, roofCol) {
+  texBox(w, h, d, facade, x, h / 2, z, tint);
+  var p = 0.5;
+  box(w, p, 0.18, roofCol, x, h + p / 2, z - d / 2 + 0.09);
+  box(w, p, 0.18, roofCol, x, h + p / 2, z + d / 2 - 0.09);
+  box(0.18, p, d, roofCol, x - w / 2 + 0.09, h + p / 2, z);
+  box(0.18, p, d, roofCol, x + w / 2 - 0.09, h + p / 2, z);
+  box(w * 0.35, 1.0, d * 0.35, 0x666666, x - w * 0.18, h + 0.5, z);
+  var by = Math.min(4.2, h - 2.5);
+  var balc = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.14, 3.2), new THREE.MeshLambertMaterial({ color: 0xffffff }));
+  balc.position.set(x + w / 2 + 0.6, by, z); scene.add(balc);
+  var rail = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.5, 3.2), new THREE.MeshLambertMaterial({ color: 0xdddddd }));
+  rail.position.set(x + w / 2 + 1.18, by + 0.32, z); scene.add(rail);
+  r20wins(x + w / 2, z, d, h, 2);
+}
+function r20gable(x, z, w, h, d, col, roofCol) {
+  box(w, h, d, col, x, h / 2, z);
+  var rise = w * 0.32, run = w / 2 + 0.4;
+  var len = Math.sqrt(run * run + rise * rise) + 0.3;
+  var ang = Math.atan2(rise, run);
+  var s1 = new THREE.Mesh(new THREE.BoxGeometry(len, 0.16, d + 0.5), new THREE.MeshLambertMaterial({ color: roofCol }));
+  s1.position.set(x - run / 2, h + rise / 2, z); s1.rotation.z = ang; s1.castShadow = true; scene.add(s1);
+  var s2 = new THREE.Mesh(new THREE.BoxGeometry(len, 0.16, d + 0.5), new THREE.MeshLambertMaterial({ color: roofCol }));
+  s2.position.set(x + run / 2, h + rise / 2, z); s2.rotation.z = -ang; s2.castShadow = true; scene.add(s2);
+  box(0.6, 1.6, 0.6, 0x8a5a4a, x + w * 0.28, h + rise * 0.5 + 0.5, z - d * 0.2);
+  r20wins(x + w / 2, z, d, h, 2);
+}
+function r20step(x, z, w, h, d, facade, tint) {
+  texBox(w, h, d, facade, x, h / 2, z, tint);
+  var w2 = w * 0.55, d2 = d * 0.55, h2 = 3 + (h % 3);
+  texBox(w2, h2, d2, facade, x, h + h2 / 2, z, tint);
+  box(0.15, 3, 0.15, 0x666666, x, h + h2 + 1.5, z);
+  r20wins(x + w / 2, z, d, h, 3);
+}
+function r20porch(x, z, w, h, d, col, roofCol) {
+  box(w, h, d, col, x, h / 2, z);
+  var slab = new THREE.Mesh(new THREE.BoxGeometry(w + 2.4, 0.22, d + 2.4), new THREE.MeshLambertMaterial({ color: roofCol }));
+  slab.position.set(x, h + 0.11, z); slab.castShadow = true; scene.add(slab);
+  [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(function (o) {
+    var post = new THREE.Mesh(new THREE.BoxGeometry(0.18, h, 0.18), new THREE.MeshLambertMaterial({ color: 0x6a4a2a }));
+    post.position.set(x + o[0] * (w / 2 + 0.9), h / 2, z + o[1] * (d / 2 + 0.9)); scene.add(post);
+  });
+  r20wins(x + w / 2, z, d, h, 2);
+}
+// Four houses, each in a real z-gap of the x -92 dense row — clear of the
+// cross streets (z -163/-61/41/143), the port containers and warehouse,
+// the far towers, the factories, the club and the hill. (First placement
+// sat on top of the -92 row and the far towers; these sit in its gaps so
+// they read from Avenue 2.)
+r20gable(-95, -164, 8, 5, 8, 0xe8c8a8, 0xc86a2a);
+r20porch(-95, -1, 8, 4.5, 8, 0xffe9c8, 0x8a2a3a);
+r20step(-95, 20, 8, 20, 8, 'facade-beige', 0xfff0d8);
+r20gable(-95, 70, 8, 5, 8, 0xffe9a8, 0x37b24a);

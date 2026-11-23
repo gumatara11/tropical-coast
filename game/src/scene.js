@@ -138,7 +138,7 @@ function farTower(x, z, w, h, d, face) {
   fc.offsetHSL(((Math.abs(x + z) % 5) - 2) * 0.015, 0.06, ((Math.abs(x - z) % 3) - 1) * 0.06);
   var m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshBasicMaterial({ color: fc, fog: false }));
   m.position.set(x, h / 2 - 0.1, z); scene.add(m);
-  var n = 4 + (Math.abs(x + z) % 3);
+  var n = 10 + (Math.abs(x + z) % 4);
   for (var i = 0; i < n; i++) {
     var win = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 1.9), winMatFar);
     if (face === 'E') {
