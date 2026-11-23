@@ -303,6 +303,9 @@ var police4 = makeCar(0xf2f2f2, 3.5, 40, 'police');
 var police5 = makeCar(0xf2f2f2, -3.5, 120, 'police');
 var police6 = makeCar(0xf2f2f2, 3.5, 160, 'police');
 var taxi = makeCar(0xffd21a, -2, 40, 'taxi');
+// Round 23: the taxi drives +z (render.js) so it faces +z — rotation 0
+// had it driving backwards, nose to the rear.
+taxi.rotation.y = Math.PI;
 var traffic = [
   makeCar(0x8a5aff, -3, -50, 'coupe'),
   makeCar(0x37b24a, 3, -80, 'sedan'),
@@ -310,6 +313,9 @@ var traffic = [
   makeCar(0x2ac8c8, 3, -140, 'coupe'),
   makeCar(0xd82a5a, -3, -170, 'sedan')
 ];
+// Round 23: coast-road traffic drives +z, so every car faces +z — the
+// missing rotation had all five driving backwards (nose to the rear).
+traffic.forEach(function (a) { a.rotation.y = Math.PI; });
 var aveTraffic = [
   makeCar(0x2a6a8a, -32, -100, 'sedan'),
   makeCar(0xd8d82a, -32, 30, 'coupe'),
@@ -338,8 +344,69 @@ var bikeTraffic = [
   makeBike(0xff8ac8, -30, -60, Math.PI, 'vespa'),
   makeBike(0x2ac8c8, -78, 40, Math.PI, 'sport'),
   makeBike(0xf2f2f2, 5, 100, Math.PI, 'vespa'),
-  makeBike(0xd82a2a, -34, 150, Math.PI, 'sport')
+  makeBike(0xd82a2a, -34, 150, Math.PI, 'sport'),
+  makeBike(0x37e07a, -128, 20, Math.PI, 'sport')
 ];
+// Round 23: Avenue 3 traffic — same +z flow as the other avenues, so
+// every car faces +z (rotation PI, like aveTraffic / ave2Traffic).
+var ave3Traffic = [
+  makeCar(0x2a8a6a, -128, -60, 'sedan'),
+  makeCar(0xc82a8a, -128, 80, 'coupe')
+];
+ave3Traffic.forEach(function (a) { a.rotation.y = Math.PI; });
+// Round 23: bike-traffic riders — every moving bike carries a rider now
+// (a bike rolling along with nobody on it was the bug). A full person()
+// figure, seated like the verified fbike/fvespa staging poses: hips on
+// the seat, torso leaned forward, hands to the bars, feet to the pegs,
+// helmeted head. Parked bikes (`bikes`) are untouched — still riderless,
+// the player climbs onto those. person() is called here, after every
+// seeded layout call in world.js/character.js, so the shared rnd()
+// sequence — and every existing placement — is unchanged.
+function makeBikeRider(bike, shirtCol, pantsCol) {
+  var rider = person(shirtCol, pantsCol, false, { flat: true });
+  var sport = bike.userData.type === 'sport';
+  var seatTopY = sport ? 1.05 : 0.845;
+  var lean = sport ? 0.62 : 0.12;
+  var seatLZ = sport ? 0.45 : 0.4;
+  // Same seat math as stageSeat, in bike-local coords: the group origin
+  // sits below the hips, so it shifts back 0.95*sin(lean) along the
+  // facing and drops 0.95*cos(lean) under the seat top.
+  rider.position.set(0, seatTopY - 0.95 * Math.cos(lean), seatLZ + 0.95 * Math.sin(lean));
+  rider.rotation.order = 'YXZ';
+  rider.rotation.y = Math.PI;
+  rider.rotation.x = lean;
+  // Seated pose (stagePose indexing: knee = leg.children[1], elbow proxy
+  // = arm.children[1]; no arm/leg child is added, removed or reordered).
+  var u = rider.userData;
+  var hip = sport ? -1.30 : -1.3, knee = sport ? 1.20 : 1.3;
+  u.legL.rotation.x = hip; u.legR.rotation.x = hip;
+  u.legL.children[1].rotation.x = knee; u.legR.children[1].rotation.x = knee;
+  var shoulder = sport ? -1.0 : -0.6, elbow = sport ? -0.35 : -0.5;
+  u.armL.rotation.x = shoulder; u.armR.rotation.x = shoulder;
+  u.armL.children[1].rotation.x = elbow; u.armR.children[1].rotation.x = elbow;
+  var spread = sport ? 0.08 : 0.18;
+  u.armL.rotation.z = spread; u.armR.rotation.z = -spread;
+  u.head.rotation.x = sport ? -0.2 : 0.1;
+  // Helmet: a dark shell over the hair + a clear-ish visor, appended at
+  // the END of the head group only (never inserted before existing head
+  // meshes).
+  var helmM = new THREE.MeshLambertMaterial({ color: 0x1a1a2a });
+  var shell = new THREE.Mesh(new THREE.SphereGeometry(0.13, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.62), helmM);
+  shell.scale.set(1.05, 1.15, 1.08); shell.position.y = 0.01; u.head.add(shell);
+  var visor = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.07, 0.03), new THREE.MeshLambertMaterial({ color: 0x2a4a5a }));
+  visor.position.set(0, 0.02, 0.12); u.head.add(visor);
+  bike.add(rider);
+  return rider;
+}
+var riderCols = [
+  [0xff5a5a, 0x2a2a4a], [0x2a9ad8, 0x4a4a4a], [0x37b24a, 0x2a2a4a],
+  [0xffd23f, 0x8a5a2a], [0x9a5aff, 0x2a2a4a], [0x2ac8c8, 0x4a4a4a],
+  [0xff8a2a, 0x2a2a4a], [0xff8ac8, 0x8a5a2a], [0x37e07a, 0x2a2a4a]
+];
+bikeTraffic.forEach(function (bk, bi) {
+  var rc = riderCols[bi % riderCols.length];
+  makeBikeRider(bk, rc[0], rc[1]);
+});
 // Police helicopter: white rounded body, blue band, big bubble canopy,
 // tail boom with fin and tail rotor, belly + skids, spotlight cone.
 var heli = new THREE.Group();

@@ -20,21 +20,23 @@ var C = V[variant] || V.sunset;
 var W = window.innerWidth, H = window.innerHeight;
 
 // The street grid: coast road x -8..8, Avenue 1 x -37..-27, Avenue 2 x -85..-75,
-// four cross streets. The whole map runs z -205..205, x -110..30 on land.
+// Avenue 3 x -133..-123, four cross streets. The whole map runs
+// z -205..205, x -158..30 on land.
 var crossZs = [-163, -61, 41, 143];
 
 function onRoad(x, z) {
   if (x >= -8 && x <= 8) return true;
   if (x >= -37 && x <= -27) return true;
   if (x >= -85 && x <= -75) return true;
-  for (var i = 0; i < crossZs.length; i++) if (z >= crossZs[i] - 5 && z <= crossZs[i] + 5 && x >= -110 && x <= 8) return true;
+  if (x >= -133 && x <= -123) return true;
+  for (var i = 0; i < crossZs.length; i++) if (z >= crossZs[i] - 5 && z <= crossZs[i] + 5 && x >= -158 && x <= 8) return true;
   return false;
 }
 function walkable(x, z) {
   if (onRoad(x, z)) return true;
   if (x >= -13 && x <= 13) return true;
   if (x >= -40 && x <= -24) return true;
-  if (x >= -110 && x <= -60) return true;
+  if (x >= -158 && x <= -60) return true;
   if (x >= 13 && x <= 34) return true; // beach + shallows
   // SA alleys (round 15): the four east-west lanes through the block row.
   if (x >= -75 && x <= -37 && z >= -121 && z <= -117) return true;

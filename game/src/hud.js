@@ -76,6 +76,8 @@ function drawMap() {
   dot(police6.position.x, police6.position.z, '#2a6aff', 4);
   traffic.forEach(function (t) { dot(t.position.x, t.position.z, '#ffffff', 3); });
   aveTraffic.forEach(function (t) { dot(t.position.x, t.position.z, '#ffffff', 3); });
+  ave3Traffic.forEach(function (t) { dot(t.position.x, t.position.z, '#ffffff', 3); });
+  officers.forEach(function (o) { dot(o.position.x, o.position.z, '#2a6aff', 3); });
   crossTraffic.forEach(function (t) { dot(t.position.x, t.position.z, '#ffffff', 3); });
   peds.forEach(function (pd) { dot(pd.position.x, pd.position.z, '#ff8ac8', 2); });
 }
@@ -92,6 +94,7 @@ var lastClockMin = -1;
 function districtAt(x, z) {
   if (x >= 30) return 'OCEAN';
   if (x >= 14) return 'BEACH';
+  if (x <= -110) return 'WESTSIDE';
   if (x <= -60 && x >= -110) {
     if (z < -145) return 'PELABUHAN';
     if (z < -60) return 'RESIDENTIAL';
@@ -109,6 +112,7 @@ function streetAt(x, z) {
   if (x >= -8 && x <= 8) return 'COAST ROAD';
   if (x >= -37 && x <= -27) return 'AVENUE 1';
   if (x >= -85 && x <= -75) return 'AVENUE 2';
+  if (x >= -133 && x <= -123) return 'AVENUE 3';
   if (x >= 14 && x < 30) return 'MARINA ROW';
   if (x >= 30) return 'OPEN WATER';
   for (var i = 0; i < crossZs.length; i++) if (z >= crossZs[i] - 5 && z <= crossZs[i] + 5) return 'CROSS ST';

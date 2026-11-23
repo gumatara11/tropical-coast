@@ -106,8 +106,8 @@ var sand = new THREE.Mesh(new THREE.PlaneGeometry(16, 440), new THREE.MeshLamber
 sand.rotation.x = -Math.PI / 2; sand.position.set(22, 0.06, 0); sand.receiveShadow = true; scene.add(sand);
 var ocean = new THREE.Mesh(new THREE.PlaneGeometry(180, 440), new THREE.MeshLambertMaterial({ map: TEX['sea'], color: C.ocean }));
 ocean.rotation.x = -Math.PI / 2; ocean.position.set(120, -0.1, 0); scene.add(ocean);
-var city = new THREE.Mesh(new THREE.PlaneGeometry(100, 440), new THREE.MeshLambertMaterial({ color: C.city }));
-city.rotation.x = -Math.PI / 2; city.position.set(-64, 0, 0); city.receiveShadow = true; scene.add(city);
+var city = new THREE.Mesh(new THREE.PlaneGeometry(150, 440), new THREE.MeshLambertMaterial({ color: C.city }));
+city.rotation.x = -Math.PI / 2; city.position.set(-89, 0, 0); city.receiveShadow = true; scene.add(city);
 
 // ---- Shops along the coast road, facing the sea ----
 var shopDefs = [
@@ -189,9 +189,9 @@ for (var ad2 = -210; ad2 < 210; ad2 += 8) {
   adash2.rotation.x = -Math.PI / 2; adash2.position.set(-80, 0.03, ad2); scene.add(adash2);
 }
 crossZs.forEach(function (cz) {
-  var cr = new THREE.Mesh(new THREE.PlaneGeometry(118, 10), new THREE.MeshLambertMaterial({ map: (variant === 'golden' ? TEX['road-cross-golden'] : TEX['road-cross']), color: 0xffffff }));
-  cr.rotation.x = -Math.PI / 2; cr.position.set(-51, 0.03, cz); cr.receiveShadow = true; scene.add(cr);
-  for (var dx = -106; dx < 6; dx += 8) {
+  var cr = new THREE.Mesh(new THREE.PlaneGeometry(166, 10), new THREE.MeshLambertMaterial({ map: (variant === 'golden' ? TEX['road-cross-golden'] : TEX['road-cross']), color: 0xffffff }));
+  cr.rotation.x = -Math.PI / 2; cr.position.set(-75, 0.03, cz); cr.receiveShadow = true; scene.add(cr);
+  for (var dx = -154; dx < 6; dx += 8) {
     var d2 = new THREE.Mesh(new THREE.PlaneGeometry(3.5, 0.35), dashMat);
     d2.rotation.x = -Math.PI / 2; d2.position.set(dx, 0.04, cz); scene.add(d2);
   }
@@ -902,3 +902,57 @@ r20gable(-95, -164, 8, 5, 8, 0xe8c8a8, 0xc86a2a);
 r20porch(-95, -1, 8, 4.5, 8, 0xffe9c8, 0x8a2a3a);
 r20step(-95, 20, 8, 20, 8, 'facade-beige', 0xfff0d8);
 r20gable(-95, 70, 8, 5, 8, 0xffe9a8, 0x37b24a);
+
+// ---- Round 23: Avenue 3 — the map grows west (Gito, 23 Nov 19:43) ----
+// "Map kecil banget". New avenue x -133..-123, city slab + cross streets
+// extended to x -158, buildings along both sides + a far-west tower row.
+// ALL fixed coordinates, no seeded calls — the deterministic layout never
+// shifts. Footprints sit clear of the cross streets (z -168..-158,
+// -66..-56, 36..46, 138..148) and of every neighbour.
+// Avenue 3 road + centre dashes (same build as Avenue 1/2).
+var avRoad3 = new THREE.Mesh(new THREE.PlaneGeometry(10, 440), new THREE.MeshLambertMaterial({ map: (variant === 'golden' ? TEX['road-golden'] : TEX['road-long']), color: 0xffffff }));
+avRoad3.rotation.x = -Math.PI / 2; avRoad3.position.set(-128, 0.01, 0); avRoad3.receiveShadow = true; scene.add(avRoad3);
+for (var ad3 = -210; ad3 < 210; ad3 += 8) {
+  var adash3 = new THREE.Mesh(new THREE.PlaneGeometry(0.35, 3.5), dashMat);
+  adash3.rotation.x = -Math.PI / 2; adash3.position.set(-128, 0.03, ad3); scene.add(adash3);
+}
+// East side (x -117): textured mid-rise row — the AI facade wraps all
+// faces, so it reads from Avenue 3 (the r20 detailed houses only dress
+// their east face, which here would look at the old -106 row).
+[[-192, 16, 'facade-cream', 0xffe8c8], [-140, 22, 'facade-beige', 0xfff0d8],
+ [-118, 12, 'facade-terra', 0xd8e4ff], [-95, 28, 'facade-cream', 0xffe8c8],
+ [-30, 18, 'facade-beige', 0xfff0d8], [-5, 24, 'facade-terra', 0xd8e4ff],
+ [15, 14, 'facade-cream', 0xffe8c8], [65, 26, 'facade-beige', 0xfff0d8],
+ [90, 16, 'facade-terra', 0xd8e4ff], [118, 20, 'facade-cream', 0xffe8c8],
+ [165, 14, 'facade-beige', 0xfff0d8], [190, 22, 'facade-terra', 0xd8e4ff]
+].forEach(function (f, fi) {
+  texBox(8, f[1], 8, f[2], -117, f[1] / 2, f[0], f[3]);
+  if (fi % 2 === 0) box(8 * 0.4, 1, 8 * 0.4, 0x666666, -117, f[1] + 0.5, f[0]);
+});
+// West side (x -141): varied houses — their detailed east face + door
+// look straight onto Avenue 3.
+r20flat(-141, -180, 10, 20, 8, 'facade-beige', 0xfff0d8, 0x8a5a2a);
+r20gable(-141, -130, 10, 5, 8, 0xffe9a8, 0x37b24a);
+r20step(-141, -105, 10, 16, 8, 'facade-terra', 0xd8e4ff);
+r20porch(-141, -75, 10, 4.5, 8, 0xe8c8a8, 0xc86a2a);
+r20flat(-141, -20, 10, 24, 8, 'facade-cream', 0xffe8c8, 0x2a2a4a);
+r20gable(-141, 5, 10, 5, 8, 0xf0d8b8, 0x8a2a3a);
+r20step(-141, 25, 10, 18, 8, 'facade-beige', 0xfff0d8);
+r20porch(-141, 75, 10, 4.5, 8, 0xffe9c8, 0x8a5a2a);
+r20flat(-141, 105, 10, 14, 8, 'facade-terra', 0xd8e4ff, 0x8a5a2a);
+r20gable(-141, 125, 10, 5, 8, 0xe8d8c8, 0x9a6a4a);
+r20step(-141, 175, 10, 26, 8, 'facade-cream', 0xffe8c8);
+r20porch(-141, 195, 10, 4.5, 8, 0xffe9a8, 0xd82a2a);
+// Far-west tower row (x -155): skyline depth behind the houses.
+[[-175, 30, 'facade-cream', 0xffe8c8], [-90, 22, 'facade-beige', 0xfff0d8],
+ [-45, 26, 'facade-terra', 0xd8e4ff], [55, 20, 'facade-cream', 0xffe8c8],
+ [95, 28, 'facade-beige', 0xfff0d8], [155, 24, 'facade-terra', 0xd8e4ff],
+ [185, 18, 'facade-cream', 0xffe8c8]
+].forEach(function (f) {
+  texBox(8, f[1], 8, f[2], -155, f[1] / 2, f[0], f[3]);
+});
+// Avenue 3 street signs, facing the road from both sidewalks.
+signPlane(signTexture('AVENUE 3', '#2a6ad8', '#ffffff', false), 8, 2.4, -136, 9, -100, Math.PI / 2);
+box(0.4, 9, 0.4, 0x666666, -136.5, 4.5, -100);
+signPlane(signTexture('AVENUE 3', '#2a6ad8', '#ffffff', false), 8, 2.4, -120, 9, 100, -Math.PI / 2);
+box(0.4, 9, 0.4, 0x666666, -119.5, 4.5, 100);

@@ -426,7 +426,11 @@ for (var pi = 0; pi < 22; pi++) {
   var ped = person(pedCols[pi % 8], [0x2a2a4a, 0x4a4a4a, 0x8a5a2a][pi % 3], pi % 3 === 0);
   var side = pi % 2 === 0 ? -10.5 : 10.5;
   ped.position.set(side, 0, -180 + pi * 17 + rnd() * 8);
-  ped.rotation.y = side < 0 ? Math.PI / 2 : -Math.PI / 2;
+  // Round 23: peds walk ALONG the sidewalk (dir = side<0 ? +z : -z), so
+  // they face their walking direction — the old +/-PI/2 had them
+  // sidestepping down the street, shoulders first. A person's front is
+  // +z local, so walking +z faces rotation 0 and walking -z faces PI.
+  ped.rotation.y = side < 0 ? 0 : Math.PI;
   ped.userData.walk = rnd() * 6.28; ped.userData.sp = 0.5 + rnd() * 0.5; ped.userData.side = side;
   scene.add(ped); peds.push(ped);
 }
@@ -434,7 +438,7 @@ for (var pi2 = 0; pi2 < 10; pi2++) {
   var ped2 = person(pedCols[pi2 % 8], [0x2a2a4a, 0x4a4a4a, 0x8a5a2a][pi2 % 3], pi2 % 3 === 0);
   var side2 = pi2 % 2 === 0 ? -29.5 : -34.5;
   ped2.position.set(side2, 0, -180 + pi2 * 38 + rnd() * 8);
-  ped2.rotation.y = pi2 % 2 === 0 ? Math.PI / 2 : -Math.PI / 2;
+  ped2.rotation.y = pi2 % 2 === 0 ? 0 : Math.PI;
   ped2.userData.walk = rnd() * 6.28; ped2.userData.sp = 0.5 + rnd() * 0.5; ped2.userData.side = pi2 % 2 === 0 ? -29.5 : 29.5;
   scene.add(ped2); peds.push(ped2);
 }
@@ -442,7 +446,7 @@ for (var pi3 = 0; pi3 < 6; pi3++) {
   var ped3 = person(pedCols[pi3 % 8], [0x2a2a4a, 0x4a4a4a, 0x8a5a2a][pi3 % 3], pi3 % 3 === 0);
   var side3 = pi3 % 2 === 0 ? -77.5 : -82.5;
   ped3.position.set(side3, 0, -150 + pi3 * 55 + rnd() * 8);
-  ped3.rotation.y = pi3 % 2 === 0 ? Math.PI / 2 : -Math.PI / 2;
+  ped3.rotation.y = pi3 % 2 === 0 ? 0 : Math.PI;
   ped3.userData.walk = rnd() * 6.28; ped3.userData.sp = 0.5 + rnd() * 0.5; ped3.userData.side = pi3 % 2 === 0 ? -77.5 : 77.5;
   scene.add(ped3); peds.push(ped3);
 }
@@ -500,3 +504,37 @@ function addMark(obj) {
   marks.push({ obj: obj, mesh: mk });
 }
 addMark(woman); addMark(dockWorker); addMark(bouncer);
+
+// Round 23: foot officers — police characters on foot, a list of their
+// own (NOT `peds`: peds flee gunfire, officers chase the player). Navy
+// uniform + cap + gold badge, posted on the sidewalks by the police cars
+// and the promenade so Gito sees police without any wanted level.
+// Built here, after every seeded placement in this file, so the shared
+// rnd() sequence — and every existing NPC — is unchanged.
+var officers = [];
+var officerPosts = [
+  [-11, -6], [-11, -30], [-11, -80], [11, 42], [-11, 118], [11, 158]
+];
+officerPosts.forEach(function (post, oi) {
+  var off = person(0x1a2a5a, 0x14141f, false, { flat: true });
+  off.position.set(post[0], 0, post[1]);
+  // Initial facing matches the patrol facing (patDir > 0 walks +z,
+  // which a person faces at rotation 0); the patrol branch re-sets it
+  // every frame anyway.
+  off.rotation.y = oi % 2 === 0 ? 0 : Math.PI;
+  // Cap: navy disc + brim, appended at the END of the head group only.
+  var capM = new THREE.MeshLambertMaterial({ color: 0x0e1a3a });
+  var cap = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.135, 0.07, 14), capM);
+  cap.position.y = 0.115; off.userData.head.add(cap);
+  var brim = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.025, 0.09), capM);
+  brim.position.set(0, 0.085, 0.13); off.userData.head.add(brim);
+  var band = new THREE.Mesh(new THREE.CylinderGeometry(0.132, 0.132, 0.025, 14), new THREE.MeshLambertMaterial({ color: 0xc8a83a }));
+  band.position.y = 0.085; off.userData.head.add(band);
+  // Gold badge on the left chest.
+  var badge = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.09, 0.02), new THREE.MeshLambertMaterial({ color: 0xd4af37 }));
+  badge.position.set(-0.09, 1.35, 0.17); off.add(badge);
+  off.userData.post = { x: post[0], z: post[1] };
+  off.userData.walk = oi * 1.3;
+  off.userData.pat = 0; off.userData.patDir = oi % 2 === 0 ? 1 : -1;
+  scene.add(off); officers.push(off);
+});

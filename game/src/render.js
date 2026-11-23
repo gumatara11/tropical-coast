@@ -110,7 +110,7 @@ function optimizeScene() {
   // Shadow pruning: static meshes smaller than ~1 m across do not cast —
   // their shadows are invisible at this sun frustum, but each one costs
   // a draw call in the shadow pass. Characters and vehicles keep theirs.
-  var dynamicRoots = [gito, woman, player].concat(traffic, aveTraffic, ave2Traffic, crossTraffic, bikeTraffic, bikes, motorboats, jetskis, [police, police2, police3, police4, police5, police6, taxi, heli, tourHeli], peds, chatters, beachgoers);
+  var dynamicRoots = [gito, woman, player].concat(traffic, aveTraffic, ave2Traffic, ave3Traffic, crossTraffic, bikeTraffic, bikes, motorboats, jetskis, [police, police2, police3, police4, police5, police6, taxi, heli, tourHeli], peds, chatters, beachgoers, officers);
   missions.forEach(function (mm) { if (mm.giverObj) dynamicRoots.push(mm.giverObj); });
   function isDynamic(o) { while (o) { if (dynamicRoots.indexOf(o) >= 0) return true; o = o.parent; } return false; }
   var pruned = 0;
@@ -167,7 +167,7 @@ function updateFlee(list, dt) {
     else if (walkable(nx, pd.position.z)) pd.position.x = nx;
     else if (walkable(pd.position.x, nz)) pd.position.z = nz;
     pd.position.y = groundY(pd.position.x, pd.position.z);
-    pd.rotation.y = Math.atan2(-dx / d, -dz / d);
+    pd.rotation.y = Math.atan2(dx / d, dz / d);
     u.walk = (u.walk || 0) + dt * 9;
     var sw = Math.sin(u.walk) * 0.55;
     if (u.legL) { u.legL.rotation.x = sw; u.legR.rotation.x = -sw; }
@@ -246,13 +246,17 @@ function frame() {
     tr.position.z += dt * (5 + i * 2) * brakeK(tr);
     if (tr.position.z > 210) tr.position.z = -210;
   });
+  ave3Traffic.forEach(function (tr, i) {
+    tr.position.z += dt * (5 + i * 2) * brakeK(tr);
+    if (tr.position.z > 210) tr.position.z = -210;
+  });
   crossTraffic[0].position.x += dt * 8 * brakeK(crossTraffic[0]); if (crossTraffic[0].position.x > 8) crossTraffic[0].position.x = -58;
   crossTraffic[1].position.x -= dt * 8 * brakeK(crossTraffic[1]); if (crossTraffic[1].position.x < -58) crossTraffic[1].position.x = 8;
   bikeTraffic.forEach(function (tr, i) {
     tr.position.z += dt * (7 + i * 2) * brakeK(tr);
     if (tr.position.z > 210) tr.position.z = -210;
   });
-  [traffic, aveTraffic, ave2Traffic, crossTraffic, bikeTraffic].forEach(function (list) {
+  [traffic, aveTraffic, ave2Traffic, ave3Traffic, crossTraffic, bikeTraffic].forEach(function (list) {
     list.forEach(function (o) { if (o.userData.brakeT > 0) o.userData.brakeT -= dt; });
   });
   var chaseK = wanted > 0 ? 2.4 : 1.2;
@@ -276,7 +280,9 @@ function frame() {
     police2.position.z += ((pz - 6) - police2.position.z) * dt * 2.0;
     police2.rotation.y = heading;
   } else if (wanted >= 2 && onFoot) { chaseOnFoot(police2, px - 3.5, pz - 6, 6.5, dt); }
-  else { police2.position.z += dt * 5; if (police2.position.z > 210) police2.position.z = -210; }
+  // Round 23: patrol drives +z, so the unit faces +z — without this the
+  // car kept whatever yaw the last chase left (usually 0: backwards).
+  else { police2.rotation.y = Math.PI; police2.position.z += dt * 5; if (police2.position.z > 210) police2.position.z = -210; }
   // Round 22: more stars, more hunters on foot too — police3/4 join at
   // 3 stars, police5 at 4, police6 at 5 (the dispatch count follows).
   [[police3, 6, -12, 3], [police4, -6, -16, 3], [police5, 2, -20, 4], [police6, -2, -24, 5]].forEach(function (u) {
@@ -286,7 +292,8 @@ function frame() {
       pu.position.z += ((pz + u[2]) - pu.position.z) * dt * 2.0;
       pu.rotation.y = heading;
     } else if (onFoot && wanted >= u[3]) { chaseOnFoot(pu, px + u[1], pz + u[2], 6.5, dt); }
-    else { pu.position.z += dt * 5; if (pu.position.z > 210) pu.position.z = -210; }
+    // Round 23: same backwards-patrol fix as police2 — patrol drives +z.
+    else { pu.rotation.y = Math.PI; pu.position.z += dt * 5; if (pu.position.z > 210) pu.position.z = -210; }
   });
   taxi.position.z += dt * 7 * brakeK(taxi); if (taxi.position.z > 210) taxi.position.z = -210;
   if (taxi.userData.brakeT > 0) taxi.userData.brakeT -= dt;
@@ -361,6 +368,59 @@ function frame() {
   // Round 22: gunshot flee — after the normal NPC loops, so the run
   // pose + escape movement win while fleeT runs.
   updateFlee(peds, dt); updateFlee(chatters, dt); updateFlee(beachgoers, dt);
+  // Round 23: foot officers — always visible on patrol near their post
+  // while wanted is 0; when wanted, the first N chase the player on
+  // foot (1 star: 2, 2: 3, 3: 4, 4: 5, 5: 6), lead at 7.0 m/s, the rest
+  // at 6.5 — both slower than the player's 8.5 m/s run, so Gito can
+  // still escape. When the heat dies they walk back to their post and
+  // resume patrol. Officers never damage the player: no damagePlayer
+  // call, no collision check — contact is just a near-miss.
+  // Facing note (#14): chaseOnFoot was built for CARS (front = -z
+  // local), so a person steered by it faces backwards. Every branch
+  // below re-sets rotation with the PERSON formula (front = +z local):
+  // rotation.y = atan2(dx, dz) toward the target.
+  (function () {
+    var chaseN = wanted >= 5 ? 6 : wanted >= 4 ? 5 : wanted >= 3 ? 4 : wanted >= 2 ? 3 : wanted >= 1 ? 2 : 0;
+    officers.forEach(function (of, oi) {
+      var u = of.userData;
+      if (oi < chaseN) {
+        var tx = px + (oi % 2 === 0 ? 2.5 : -2.5), tz = pz - 3 - oi * 2;
+        chaseOnFoot(of, tx, tz, oi === 0 ? 7.0 : 6.5, dt);
+        of.rotation.y = Math.atan2(tx - of.position.x, tz - of.position.z);
+        u.walk += dt * 10;
+        var sw = Math.sin(u.walk) * 0.55;
+        u.legL.rotation.x = sw; u.legR.rotation.x = -sw;
+        u.armL.rotation.x = -sw; u.armR.rotation.x = sw;
+        of.position.y = groundY(of.position.x, of.position.z);
+      } else {
+        var dx = u.post.x - of.position.x, dz = u.post.z - of.position.z;
+        if (Math.hypot(dx, dz) > 1.5) {
+          chaseOnFoot(of, u.post.x, u.post.z, 3.0, dt);
+          of.rotation.y = Math.atan2(u.post.x - of.position.x, u.post.z - of.position.z);
+          u.walk += dt * 7;
+          var sw2 = Math.sin(u.walk) * 0.4;
+          u.legL.rotation.x = sw2; u.legR.rotation.x = -sw2;
+          u.armL.rotation.x = -sw2; u.armR.rotation.x = sw2;
+          of.position.y = groundY(of.position.x, of.position.z);
+        } else {
+          // Patrol: walk back and forth along the sidewalk, +/-6 m
+          // around the post, facing the way they walk (a person
+          // walking +z faces rotation 0, walking -z faces PI).
+          u.pat += dt * 1.2 * u.patDir;
+          if (u.pat > 6) { u.pat = 6; u.patDir = -1; }
+          if (u.pat < -6) { u.pat = -6; u.patDir = 1; }
+          var nz = u.post.z + u.pat;
+          if (walkable(u.post.x, nz)) of.position.z = nz;
+          of.position.y = groundY(of.position.x, of.position.z);
+          of.rotation.y = u.patDir > 0 ? 0 : Math.PI;
+          u.walk += dt * 5;
+          var sw3 = Math.sin(u.walk) * 0.4;
+          u.legL.rotation.x = sw3; u.legR.rotation.x = -sw3;
+          u.armL.rotation.x = -sw3; u.armR.rotation.x = sw3;
+        }
+      }
+    });
+  })();
 
   // Player: on foot vs driving — only while playing or in cover staging.
   var kmh = 0;
@@ -421,7 +481,7 @@ function frame() {
       // path, the car brakes hard, and the police notice.
       if (playing && !cover) {
         var hitCar = null;
-        traffic.concat(aveTraffic).concat(ave2Traffic).concat(crossTraffic).concat(bikeTraffic).concat([taxi, police, police2, police3, police4, police5, police6]).forEach(function (o) {
+        traffic.concat(aveTraffic).concat(ave2Traffic).concat(ave3Traffic).concat(crossTraffic).concat(bikeTraffic).concat([taxi, police, police2, police3, police4, police5, police6]).forEach(function (o) {
           if (!hitCar && Math.hypot(o.position.x - px, o.position.z - pz) < 2.6) hitCar = o;
         });
         if (hitCar && sparkT <= 0) {
