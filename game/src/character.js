@@ -410,24 +410,26 @@ var woman = new THREE.Group();
   var wHairM = new THREE.MeshLambertMaterial({ color: 0x5a3a22 });
   var head = makeHead(wSkin, wHairM, { eyes: true, headGlasses: true, earrings: true, smile: true, luna: true });
   head.scale.set(0.90, 0.90, 0.90);
-  // Round 31 (Gito 18:51 WIB): hair like the dialogue portrait — layered,
-  // not one solid helmet. Side-swept bangs across the forehead, a high
-  // ponytail in two angled segments so the tip is uneven and wavy, a tie
-  // band at the gather, and two layers of face-framing locks.
+  // Round 31 hair fix (Gito 20:32 WIB — verdict on the R31 photo: the
+  // bangs still read as one solid mass, the ponytail is invisible from
+  // the front). Bangs are now FOUR narrow separate strands with real
+  // skin gaps between them, and the ponytail swings out to her left
+  // side so it drapes over the shoulder, visible from the front and
+  // the side — like the dialogue portrait. Every part reads separately.
   var wBack = new THREE.Mesh(new THREE.SphereGeometry(0.12, 14, 12), wHairM);
   wBack.scale.set(0.92, 1.20, 0.95); wBack.position.set(0, -0.05, -0.10); head.add(wBack);
-  [[-0.068, 0.096, 0.45], [0.002, 0.108, 0.08], [0.070, 0.094, -0.45]].forEach(function (b) {
-    var bang = new THREE.Mesh(new THREE.SphereGeometry(0.048, 12, 10), wHairM);
-    bang.scale.set(1.0, 0.34, 0.5); bang.position.set(b[0], b[1], 0.080); bang.rotation.z = b[2]; head.add(bang);
+  [[-0.072, 0.100, 0.03, 0.35], [-0.024, 0.104, 0.03, 0.12], [0.024, 0.104, 0.03, -0.12], [0.072, 0.100, 0.03, -0.35]].forEach(function (b) {
+    var bang = new THREE.Mesh(new THREE.CapsuleGeometry(0.018, b[2], 4, 8), wHairM);
+    bang.position.set(b[0], b[1], 0.084); bang.rotation.z = b[3]; bang.name = 'wBang'; head.add(bang);
   });
   var wPony = new THREE.Mesh(new THREE.CapsuleGeometry(0.095, 0.42, 4, 12), wHairM);
-  wPony.position.set(0.09, -0.16, -0.19); wPony.rotation.x = 0.30; wPony.rotation.z = -0.10; head.add(wPony);
+  wPony.position.set(0.17, -0.12, -0.08); wPony.rotation.x = 0.15; wPony.rotation.z = 0.50; wPony.name = 'wPony'; head.add(wPony);
   var wPonyTip = new THREE.Mesh(new THREE.CapsuleGeometry(0.068, 0.26, 4, 12), wHairM);
-  wPonyTip.position.set(0.12, -0.52, -0.32); wPonyTip.rotation.x = 0.45; wPonyTip.rotation.z = -0.18; head.add(wPonyTip);
+  wPonyTip.position.set(0.33, -0.55, -0.10); wPonyTip.rotation.x = 0.10; wPonyTip.rotation.z = 0.35; wPonyTip.name = 'wPonyTip'; head.add(wPonyTip);
   var wTie = new THREE.Mesh(new THREE.TorusGeometry(0.055, 0.014, 6, 14), new THREE.MeshLambertMaterial({ color: 0x2a1a10 }));
-  wTie.position.set(0.09, 0.05, -0.135); wTie.rotation.x = 1.35; wTie.rotation.z = -0.10; head.add(wTie);
+  wTie.position.set(0.06, 0.10, -0.12); wTie.rotation.x = 1.35; wTie.rotation.z = 0.50; head.add(wTie);
   [-0.10, 0.10].forEach(function (lx) {
-    var wLock = new THREE.Mesh(new THREE.CapsuleGeometry(0.032, 0.22, 4, 8), wHairM);
+    var wLock = new THREE.Mesh(new THREE.CapsuleGeometry(0.028, 0.22, 4, 8), wHairM);
     wLock.position.set(lx, -0.24, 0.06); wLock.rotation.x = 0.08; wLock.rotation.z = lx < 0 ? 0.08 : -0.08; head.add(wLock);
   });
   [-0.135, 0.135].forEach(function (lx) {
@@ -485,13 +487,13 @@ var woman = new THREE.Group();
   wTraps.scale.set(1.9, 0.45, 0.85); wTraps.position.y = 1.47; woman.add(wTraps);
   legL.rotation.x = -0.04; legR.rotation.x = 0.02;
   legR.children[1].rotation.x = 0.07;
-  // Round 31 (Gito 18:51 WIB, brief asli — koreksi "jangan menyilang"
-  // 18:55 WIB dibatalkan Gito sebagai salah ketik): saat Luna diam,
-  // lengan KIRI menyilang di depan dada (rotation.z +0.85, siku
-  // terlipat -1.35), lengan kanan menggantung natural di sisi dengan
-  // siku sedikit menekuk. R30 (kedua lengan rileks di sisi) dikalahkan.
-  armL.rotation.x = -0.10; armL.rotation.y = 0; armL.rotation.z = 0.85;
-  armL.children[2].rotation.x = -1.35;
+  // Round 31 (Gito 20:33 WIB): item 3 CANCELLED — Luna's arms do NOT
+  // cross. Both arms hang relaxed at her sides like R30 (armL
+  // rotation.z -0.20, elbow back to construction -0.50 — the -1.35
+  // elbow override is deleted). The "benjolan di dada" Gito saw in the
+  // R31 photo was the crossed left arm, not a chest sphere; Luna's
+  // domes are untouched. Right arm unchanged.
+  armL.rotation.x = -0.03; armL.rotation.y = 0; armL.rotation.z = -0.20;
   armR.rotation.x = 0.03; armR.rotation.y = -0.15;
   head.rotation.z = 0.04;
   woman.userData = { armL: armL, armR: armR, legL: legL, legR: legR, head: head };
