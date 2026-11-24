@@ -172,6 +172,12 @@
     #gaugeBox span{font-size:13px}
     #enter,#talk{bottom:170px}
   }
+  /* Touch-hide (Gito 24 Nov 21:24 WIB): the touch controls are hidden on
+     every screen — desktop plays with keyboard/mouse only (WASD, E, M,
+     click). One rule; the buttons and their handlers stay in place, and
+     !important wins over the inline display:block that render.js / hud.js
+     set on #enter / #mapBtn and over the body.mode-game #muteBtn rule. */
+  .ctl, #enter, #mapBtn, #muteBtn { display: none !important; }
 </style>
 </head>
 <body>
