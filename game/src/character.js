@@ -419,16 +419,12 @@ var woman = new THREE.Group();
   wTraps.scale.set(1.9, 0.45, 0.85); wTraps.position.y = 1.47; woman.add(wTraps);
   legL.rotation.x = -0.04; legR.rotation.x = 0.02;
   legR.children[1].rotation.x = 0.07;
-  // Round 29 (item 8, Gito live 17:11 WIB): the arm crossing her chest
-  // must be the LEFT one. The R27 pose (rotation.y 0.85) only twisted
-  // the elbow's bend direction — both hands ended up clasped together
-  // at her WAIST, no arm on the chest at all (verified by probe: both
-  // hands y ~0.95, dChest ~0.37). Now the left upper arm swings across
-  // the torso (rotation.z +0.85) and the left elbow folds the forearm
-  // up so it lies flat across her chest, hand near the right shoulder.
-  // The right arm stays relaxed at her side.
-  armL.rotation.x = -0.10; armL.rotation.y = 0; armL.rotation.z = 0.85;
-  armL.children[2].rotation.x = -1.35;
+  // Round 30 (Gito 18:26 WIB): Luna's arms hang relaxed at her sides —
+  // no arm across the chest, no hands clasped at the waist. The R29
+  // cross (left arm rotation.z +0.85, elbow folded -1.35) is reverted:
+  // both arms keep their construction pose (rotation.z -/+0.20, elbow
+  // bend -0.50), hands at hip/thigh height, like the right arm already was.
+  armL.rotation.x = -0.03; armL.rotation.y = 0; armL.rotation.z = -0.20;
   armR.rotation.x = 0.03; armR.rotation.y = -0.15;
   head.rotation.z = 0.04;
   woman.userData = { armL: armL, armR: armR, legL: legL, legR: legR, head: head };
