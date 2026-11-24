@@ -937,7 +937,12 @@ function makeBike(color, x, z, heading, type) {
     // the Vespa reads as a machine from behind, not a smooth toy.
     var tailHouse = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.12, 0.03), chromeM); tailHouse.position.set(0, 0.62, 0.92); g.add(tailHouse);
     var tailLens = new THREE.Mesh(new THREE.BoxGeometry(0.20, 0.08, 0.04), new THREE.MeshBasicMaterial({ color: 0xff2222 })); tailLens.position.set(0, 0.62, 0.94); g.add(tailLens);
-    var vPlate = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.12, 0.02), new THREE.MeshBasicMaterial({ color: 0xf2f2f2 })); vPlate.position.set(0, 0.48, 0.78); g.add(vPlate);
+    // Round 28: dark backing behind the white plate — white-on-cream had
+    // no contrast, the plate was invisible from behind. z 0.94/0.95: the
+    // plate sat at 0.78 INSIDE the extruded body (rear face ~0.93), so
+    // the R27 plate never showed at all.
+    var vPlateBack = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.16, 0.02), darkM); vPlateBack.position.set(0, 0.48, 0.94); g.add(vPlateBack);
+    var vPlate = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.12, 0.02), new THREE.MeshBasicMaterial({ color: 0xf2f2f2 })); vPlate.position.set(0, 0.48, 0.95); g.add(vPlate);
     var vEngine = new THREE.Mesh(new THREE.BoxGeometry(0.30, 0.22, 0.34), darkM); vEngine.position.set(0, 0.40, 0.58); g.add(vEngine);
     [0.34, 0.40, 0.46].forEach(function (fy) {
       var vfin = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.02, 0.30), chromeM);
@@ -1151,7 +1156,7 @@ var tourHeli = makeTourHeli();
 // board. The parked heli never moves on its own; it only flies while
 // Gito is in it (render.js 'heli' branch).
 var parkedHeli = makeTourHeli();
-parkedHeli.position.set(24, 0, 165);
+parkedHeli.position.set(24, 1.06, 165); // rest altitude = groundY 0.06 + 1.0: skids (local y -0.95) touch the sand; at y 0 the body was buried to its belly and the doors were underground
 parkedHeli.rotation.y = 0.6;
 (function () {
   var pad = new THREE.Mesh(new THREE.CircleGeometry(5.5, 24), new THREE.MeshLambertMaterial({ color: 0x3a3a4a }));

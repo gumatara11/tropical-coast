@@ -72,7 +72,12 @@ tryAttack = function () {
   best.userData.hitT = 0.6;
   best.userData.armL.rotation.x = -2.4; best.userData.armR.rotation.x = -2.4;
   sparkT = 0.3;
-  if (best.userData.hp <= 0) { best.userData.downT = 8; best.userData.hp = 100; best.rotation.z = Math.PI / 2; }
+  if (best.userData.hp <= 0) {
+    best.userData.downT = 8; best.userData.hp = 100; best.rotation.z = Math.PI / 2;
+    // Round 28 (item 1, T-pose): same arm reset as tryAttack — a rider
+    // shot off his bike mid-pose must fall with arms along the body.
+    if (best.userData.armL) { best.userData.armL.rotation.x = 0; best.userData.armR.rotation.x = 0; }
+  }
   raiseWanted(1);
 };
 // Round 26 (item 7): hit feedback polling — tryAttack (missions.js)
@@ -356,6 +361,11 @@ function endFlee(pd) {
   var u = pd.userData;
   u.fleeT = 0; pd.rotation.y = u.fleeRotY || 0;
   if (u.head) u.head.rotation.x = 0;
+  // Round 28 (item 1): the flee pose raises both arms (-1.8), but
+  // beachgoers have no per-frame arm loop and chatters only drive the
+  // right arm — after a flee their arms stayed raised forever, a
+  // permanent arms-up statue on the beach. Arms hang again now.
+  if (u.armL) { u.armL.rotation.x = 0; u.armR.rotation.x = 0; }
 }
 function updateFlee(list, dt) {
   list.forEach(function (pd) {
@@ -624,7 +634,15 @@ function frame() {
   // gets back up after 8 s instead of lying there forever.
   [peds, chatters, beachgoers, officers].forEach(function (list) {
     list.forEach(function (pd) {
-      if (pd.userData.downT > 0) { pd.userData.downT -= dt; if (pd.userData.downT <= 0) { pd.rotation.z = 0; pd.userData.hp = 100; } }
+      if (pd.userData.downT > 0) {
+        pd.userData.downT -= dt;
+        if (pd.userData.downT <= 0) {
+          pd.rotation.z = 0; pd.userData.hp = 100;
+          // Round 28 (item 1): belt and braces — a body that gets up
+          // never keeps a frozen fall pose in its arms.
+          if (pd.userData.armL) { pd.userData.armL.rotation.x = 0; pd.userData.armR.rotation.x = 0; }
+        }
+      }
       if (pd.userData.hitT > 0) pd.userData.hitT -= dt;
     });
   });
@@ -1021,7 +1039,7 @@ function frame() {
     if (nhz > 205) nhz = -205; if (nhz < -205) nhz = 205;
     heliAlt += (12 - heliAlt) * (1 - Math.exp(-1.2 * dt));
     rideObj.position.x = nhx; rideObj.position.z = nhz;
-    rideObj.position.y = Math.max(0, groundY(nhx, nhz)) + heliAlt;
+    rideObj.position.y = Math.max(0, groundY(nhx, nhz)) + 1.0 + heliAlt; // rest altitude: skids on the ground (see parkedHeli), not the body buried
     rideObj.rotation.y = rideHeading;
     if (rideObj.userData.rotor) rideObj.userData.rotor.rotation.y += dt * (8 + rideSpeed);
     if (rideObj.userData.tailRotor) rideObj.userData.tailRotor.rotation.x += dt * 30;
@@ -1174,6 +1192,15 @@ function frame() {
 // same priority order as the old game. Cover branches also stage the
 // rider pose (stageSeat) and hide nearby NPCs so the frame stays clean.
 function directCamera(dt) {
+  // Round 28 (item 2, ?cover=1 Gito hilang): the staged cameras were
+  // framed for a landscape screen. On a portrait phone (aspect ~0.46)
+  // the horizontal field is ~4x narrower, so the dialogue camera put
+  // Gito at NDC x=1.77 — clean off the right edge, invisible — while
+  // the menu and cover frames sat on the edge too. Pull the staged
+  // camera back in proportion to the narrowness, so the subject stays
+  // in frame at any aspect. Landscape (aspect >= 1) is untouched.
+  var camAsp = cam.aspect || 1;
+  var zoomOut = camAsp < 1 ? Math.min(2.6, 1.15 / camAsp) : 1;
   if (screen === 'splash') {
     cam.position.copy(splashCamPos); cam.lookAt(splashCamLook);
   } else if (screen === 'menu') {
@@ -1184,13 +1211,13 @@ function directCamera(dt) {
     woman.position.set(21.3, groundY(21.3, -70.3), -70.3); woman.rotation.y = -Math.PI / 4;
     beachgoers.forEach(function (b) { if (Math.hypot(b.position.x - 21, b.position.z + 70) < 8) b.visible = false; });
     chatters.forEach(function (b) { if (Math.hypot(b.position.x - 21, b.position.z + 70) < 8) b.visible = false; });
-    cam.position.set(15.5, 2.4, -64.5); cam.lookAt(21.5, 1.7, -70);
+    cam.position.set(21.5 - 6 * zoomOut, 1.7 + 0.7 * zoomOut, -70 + 5.5 * zoomOut); cam.lookAt(21.5, 1.7, -70);
   } else if (screen === 'dialogue') {
     // Video frame 2: Gito from BEHIND, BIG in frame, facing the sea +
     // lifeguard tower (shifted right so the wider 65% dialogue box
     // clears him).
     gito.position.set(16.8, groundY(16.8, -84), -84); gito.rotation.y = Math.PI / 2;
-    cam.position.set(13.6, 2.25, -83.7); cam.lookAt(15.7, 1.8, -85);
+    cam.position.set(15.7 - 2.1 * zoomOut, 1.8 + 0.45 * zoomOut, -85 + 1.3 * zoomOut); cam.lookAt(15.7, 1.8, -85);
   } else if (cover && screen === 'game' && !qs.get('spot')) {
     // Video frame 4: side view — Gito at the driver's door, full yellow
     // coupe beside him (walking peds near the car are hidden — the video
@@ -1198,7 +1225,7 @@ function directCamera(dt) {
     peds.forEach(function (b) { if (Math.hypot(b.position.x - 11, b.position.z + 54) < 7) b.visible = false; });
     beachgoers.forEach(function (b) { if (Math.hypot(b.position.x - 11, b.position.z + 54) < 7) b.visible = false; });
     chatters.forEach(function (b) { if (Math.hypot(b.position.x - 11, b.position.z + 54) < 7) b.visible = false; });
-    cam.position.set(12.5, 1.6, -48.5); cam.lookAt(12.5, 1.0, -55.5);
+    cam.position.set(12.5, 1.0 + 0.6 * zoomOut, -55.5 + 7 * zoomOut); cam.lookAt(12.5, 1.0, -55.5);
   } else if (cover && screen === 'game' && qs.get('spot') === 'boats') {
     // Sea view — motorboats + jetskis along the beach, from above the umbrellas.
     cam.position.set(24, 8, 52); cam.lookAt(50, 0, 5);
@@ -1220,6 +1247,7 @@ function directCamera(dt) {
     // Seat top = jetski y + 0.75 (saddle top 0.65 + 0.10 float for folded legs).
     var jk0 = jetskis[0], jh0 = jk0.rotation.y;
     stageSeat(jk0, 0, 0.35, jk0.position.y + 0.75, 0.35, { hip: -1.5, knee: 1.9, shoulder: -0.8, elbow: -0.4, head: 0.1 });
+    if (enterEl) enterEl.style.display = 'none'; // clean frame, no E pill
     var jbx = -Math.sin(jh0), jbz = -Math.cos(jh0), jsx = Math.cos(jh0), jsz = -Math.sin(jh0);
     cam.position.set(jk0.position.x + jbx * 3.2 + jsx * 3.0, 1.7, jk0.position.z + jbz * 3.2 + jsz * 3.0);
     cam.lookAt(jk0.position.x, 0.7, jk0.position.z);
@@ -1230,6 +1258,7 @@ function directCamera(dt) {
     // as a sport bike from here.
     var bk0 = bikes[0], bh0 = bk0.rotation.y;
     stageSeat(bk0, 0, 0.45, 1.05, 0.62, { hip: -1.30, knee: 1.20, shoulder: -1.0, elbow: -0.35, head: -0.2, spread: 0.08 });
+    if (enterEl) enterEl.style.display = 'none'; // clean frame, no E pill
     var bsx = Math.cos(bh0), bsz = -Math.sin(bh0);
     var bfx = -Math.sin(bh0), bfz = -Math.cos(bh0);
     cam.position.set(bk0.position.x + bfx * 3.5 + bsx * 3.5, 1.9, bk0.position.z + bfz * 3.5 + bsz * 3.5);
@@ -1239,6 +1268,7 @@ function directCamera(dt) {
     // box centre 0.72 + 0.045) + 0.08 float so shoes clear the floorboard.
     var vs0 = bikes[1], vh0 = vs0.rotation.y;
     stageSeat(vs0, 0, 0.4, 0.845, 0.12, { hip: -1.3, knee: 1.3, shoulder: -0.6, elbow: -0.5, head: 0.1 });
+    if (enterEl) enterEl.style.display = 'none'; // clean frame, no E pill
     var vbx = -Math.sin(vh0), vbz = -Math.cos(vh0), vsx = Math.cos(vh0), vsz = -Math.sin(vh0);
     cam.position.set(vs0.position.x + vbx * 3.5 + vsx * 2.5, 1.8, vs0.position.z + vbz * 3.5 + vsz * 2.5);
     cam.lookAt(vs0.position.x, 0.9, vs0.position.z);
@@ -1247,6 +1277,7 @@ function directCamera(dt) {
     // PURE SIDE of the parked red sport bike, NO rider — silhouette check.
     var sb0 = bikes[0], sh0 = sb0.rotation.y;
     gito.visible = false;
+    if (enterEl) enterEl.style.display = 'none'; // clean frame, no E pill
     cam.position.set(sb0.position.x + Math.cos(sh0) * 4.0, 1.2, sb0.position.z - Math.sin(sh0) * 4.0);
     cam.lookAt(sb0.position.x, 0.7, sb0.position.z);
     peds.forEach(function (b) { if (Math.hypot(b.position.x - 6, b.position.z - 12) < 7) b.visible = false; });
@@ -1254,17 +1285,68 @@ function directCamera(dt) {
     // PURE SIDE of the parked mint Vespa, NO rider.
     var sv0 = bikes[1], svh0 = sv0.rotation.y;
     gito.visible = false;
+    if (enterEl) enterEl.style.display = 'none'; // clean frame, no E pill
     cam.position.set(sv0.position.x + Math.cos(svh0) * 4.0, 1.1, sv0.position.z - Math.sin(svh0) * 4.0);
     cam.lookAt(sv0.position.x, 0.65, sv0.position.z);
     peds.forEach(function (b) { if (Math.hypot(b.position.x + 12, b.position.z + 20) < 7) b.visible = false; });
+  } else if (cover && screen === 'game' && qs.get('spot') === 'rvespa') {
+    // Round 28 (P2 14): REAR 3/4 of the parked mint Vespa, NO rider —
+    // tail housing, red lens, plate, indicators, grab rail + rack read
+    // only from behind. Same math as the front 3/4, mirrored to the rear.
+    var rv0 = bikes[1], rvh0 = rv0.rotation.y;
+    gito.visible = false;
+    if (enterEl) enterEl.style.display = 'none'; // clean frame, no E pill
+    var rfx = -Math.sin(rvh0), rfz = -Math.cos(rvh0), rsx = Math.cos(rvh0), rsz = -Math.sin(rvh0);
+    cam.position.set(rv0.position.x - rfx * 3.2 + rsx * 1.0, 1.5, rv0.position.z - rfz * 3.2 + rsz * 1.0);
+    cam.lookAt(rv0.position.x, 0.7, rv0.position.z);
+    peds.forEach(function (b) { if (Math.hypot(b.position.x + 12, b.position.z + 20) < 7) b.visible = false; });
+  } else if (cover && screen === 'game' && qs.get('spot') === 'heli-door') {
+    // Round 28 (P2 18): CLOSE-UP of the parked tour heli's side — door
+    // + door window + handle + rear side window fill the frame, so the
+    // cabin reads as a helicopter cabin, not a smooth egg. Parked heli
+    // (24,165), staged every frame like the chase spot stages police.
+    // Camera BELOW the rotor disc (disc y 1.2, blades span 7.6 m) at
+    // 7.5 m out — the first take at 4.5 m / y 1.7 put a rotor blade
+    // across the whole frame. Nearby peds hidden so none blocks the door.
+    gito.visible = false;
+    if (enterEl) enterEl.style.display = 'none'; // clean frame, no E pill
+    var hd = parkedHeli, hdh = hd.rotation.y;
+    var hsx = Math.cos(hdh), hsz = -Math.sin(hdh);
+    cam.position.set(hd.position.x + hsx * 6.5, 1.6, hd.position.z + hsz * 6.5);
+    cam.lookAt(hd.position.x, 1.1, hd.position.z);
+    peds.forEach(function (b) { if (Math.hypot(b.position.x - 24, b.position.z - 165) < 8) b.visible = false; });
+    beachgoers.forEach(function (b) { if (Math.hypot(b.position.x - 24, b.position.z - 165) < 8) b.visible = false; });
+    chatters.forEach(function (b) { if (Math.hypot(b.position.x - 24, b.position.z - 165) < 8) b.visible = false; });
+  } else if (cover && screen === 'game' && qs.get('spot') === 'rjet2') {
+    // Round 28 (P2 17): REAR 3/4 of the cyan jetski, NO rider — deck
+    // mat, red tail strip, exhaust + side vents on the back. Mirrors
+    // the front staging to the rear.
+    var rj0 = jetskis[0], rjh0 = rj0.rotation.y;
+    gito.visible = false;
+    if (enterEl) enterEl.style.display = 'none'; // clean frame, no E pill
+    var jfx = -Math.sin(rjh0), jfz = -Math.cos(rjh0), jsx2 = Math.cos(rjh0), jsz2 = -Math.sin(rjh0);
+    cam.position.set(rj0.position.x - jfx * 3.2 + jsx2 * 2.0, 1.6, rj0.position.z - jfz * 3.2 + jsz2 * 2.0);
+    cam.lookAt(rj0.position.x, 0.6, rj0.position.z);
+  } else if (cover && screen === 'game' && qs.get('spot') === 'police-side') {
+    // Round 28 (P2 19): PURE SIDE of a police cruiser, NO rider — light
+    // bar, doors, badge, wheels in one frame. The lead cruiser is
+    // re-staged west of the player coupe every frame (chase-spot
+    // pattern), so the coupe never crowds the shot.
+    gito.visible = false;
+    if (enterEl) enterEl.style.display = 'none'; // clean frame, no E pill
+    police.position.set(-8, 0, -40); police.rotation.y = 0;
+    cam.position.set(-2.5, 1.5, -40); cam.lookAt(-8, 0.8, -40);
+    peds.forEach(function (b) { if (Math.hypot(b.position.x + 8, b.position.z + 40) < 7) b.visible = false; });
   } else if (cover && screen === 'game' && qs.get('spot') === 'carside') {
     // PURE SIDE of the player coupe, NO character — silhouette check.
     gito.visible = false;
+    if (enterEl) enterEl.style.display = 'none'; // clean frame, no E pill
     cam.position.set(7, 1.4, 10); cam.lookAt(0, 0.9, 10);
     peds.forEach(function (b) { if (Math.hypot(b.position.x - 0, b.position.z - 10) < 7) b.visible = false; });
   } else if (cover && screen === 'game' && qs.get('spot') === 'carfront') {
     // FRONT 3/4 of the player coupe — nose, lights, grille.
     gito.visible = false;
+    if (enterEl) enterEl.style.display = 'none'; // clean frame, no E pill
     cam.position.set(5, 1.8, 2); cam.lookAt(0, 0.9, 9);
     peds.forEach(function (b) { if (Math.hypot(b.position.x - 0, b.position.z - 10) < 7) b.visible = false; });
   } else if (cover && screen === 'game' && qs.get('spot') === 'fboat') {
@@ -1273,6 +1355,7 @@ function directCamera(dt) {
     // starboard helm — staging pose only.
     var mb1 = motorboats[1], mh1 = mb1.rotation.y;
     stageSeat(mb1, 0.48, 0.35, mb1.position.y + 0.71, 0.25, { hip: -1.5, knee: 1.7, shoulder: -0.75, elbow: -0.4, head: 0.1 });
+    if (enterEl) enterEl.style.display = 'none'; // clean frame, no E pill
     var msx = Math.cos(mh1), msz = -Math.sin(mh1);
     cam.position.set(mb1.position.x + msx * 7.0, 1.8, mb1.position.z + msz * 7.0);
     cam.lookAt(mb1.position.x, 0.6, mb1.position.z);
@@ -1280,6 +1363,7 @@ function directCamera(dt) {
     // FRONT 3/4 — plan taper + bow point + cockpit + helm from here.
     var mb1b = motorboats[1], mh1b = mb1b.rotation.y;
     stageSeat(mb1b, 0.48, 0.35, mb1b.position.y + 0.71, 0.25, { hip: -1.5, knee: 1.7, shoulder: -0.75, elbow: -0.4, head: 0.1 });
+    if (enterEl) enterEl.style.display = 'none'; // clean frame, no E pill
     var msxb = Math.cos(mh1b), mszb = -Math.sin(mh1b);
     var mfx = -Math.sin(mh1b), mfz = -Math.cos(mh1b);
     cam.position.set(mb1b.position.x + msxb * 6.5 + mfx * 4.0, 2.6, mb1b.position.z + mszb * 6.5 + mfz * 4.0);

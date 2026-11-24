@@ -83,6 +83,17 @@ function paintMap(c) {
     c.fillStyle = '#ffffff'; c.beginPath(); c.arc(mx, my, r + 2.5, 0, 6.29); c.fill();
     c.fillStyle = col; c.beginPath(); c.arc(mx, my, r, 0, 6.29); c.fill();
   }
+  // Round 28 (item 3): police read at a glance — a patrolling car
+  // was the same plain blue dot as a foot officer, and the heli had
+  // no marker at all. Cars: white ring + blue core, bigger. Foot
+  // officers: blue square with a white edge. Heli (3+ stars): red
+  // ring, so a chase reads as a chase, not a traffic jam.
+  function sqDot(x, z, col, r) {
+    var mx = 8 + (x + 164) * 0.8, my = 8 + (z + 205) * 0.38;
+    if (mx < 4 || mx > 166 || my < 4 || my > 166) return;
+    c.fillStyle = '#ffffff'; c.fillRect(mx - r - 1.5, my - r - 1.5, (r + 1.5) * 2, (r + 1.5) * 2);
+    c.fillStyle = col; c.fillRect(mx - r, my - r, r * 2, r * 2);
+  }
   dot(px, pz, '#1a1a1a', 6.5);
   dot(px, pz, '#ffd21a', 5);
   var cm4 = curMission();
@@ -90,16 +101,17 @@ function paintMap(c) {
     if (missionStage === 'talk') ringDot(cm4.giverObj.position.x, cm4.giverObj.position.z, '#ffd23f', 5.5);
     else if (cm4.check && cm4.check.x !== undefined) ringDot(cm4.check.x, cm4.check.z, '#ffd23f', 5.5);
   }
-  dot(police.position.x, police.position.z, '#2a6aff', 4);
-  dot(police2.position.x, police2.position.z, '#2a6aff', 4);
-  dot(police3.position.x, police3.position.z, '#2a6aff', 4);
-  dot(police4.position.x, police4.position.z, '#2a6aff', 4);
-  dot(police5.position.x, police5.position.z, '#2a6aff', 4);
-  dot(police6.position.x, police6.position.z, '#2a6aff', 4);
+  ringDot(police.position.x, police.position.z, '#2a6aff', 5);
+  ringDot(police2.position.x, police2.position.z, '#2a6aff', 5);
+  ringDot(police3.position.x, police3.position.z, '#2a6aff', 5);
+  ringDot(police4.position.x, police4.position.z, '#2a6aff', 5);
+  ringDot(police5.position.x, police5.position.z, '#2a6aff', 5);
+  ringDot(police6.position.x, police6.position.z, '#2a6aff', 5);
+  if ((wanted >= 3 && !cover) || (cover && qs.get('spot') === 'chase')) ringDot(heli.position.x, heli.position.z, '#ff3b30', 5);
   traffic.forEach(function (t) { dot(t.position.x, t.position.z, '#ffffff', 3); });
   aveTraffic.forEach(function (t) { dot(t.position.x, t.position.z, '#ffffff', 3); });
   ave3Traffic.forEach(function (t) { dot(t.position.x, t.position.z, '#ffffff', 3); });
-  officers.forEach(function (o) { dot(o.position.x, o.position.z, '#2a6aff', 3); });
+  officers.forEach(function (o) { sqDot(o.position.x, o.position.z, '#2a6aff', 3); });
   crossTraffic.forEach(function (t) { dot(t.position.x, t.position.z, '#ffffff', 3); });
   peds.forEach(function (pd) { dot(pd.position.x, pd.position.z, '#ff8ac8', 2); });
 }
@@ -373,7 +385,7 @@ function showHitmarker(dmg, down) {
 var mapOverlayEl = document.createElement('div');
 mapOverlayEl.id = 'mapOverlay';
 mapOverlayEl.style.cssText = 'position:fixed;left:0;top:0;right:0;bottom:0;z-index:20;display:none;background:rgba(10,10,20,0.92);text-align:center;padding-top:5vh;';
-mapOverlayEl.innerHTML = '<div style="color:#ffd23f;font-size:26px;font-weight:900;letter-spacing:2px;margin-bottom:10px;">TROPICAL COAST — MAP</div><canvas id="bigMap" width="510" height="510" style="width:510px;height:510px;max-width:92vw;max-height:70vh;border:4px solid #fff;border-radius:50%;background:#2a8a4a;"></canvas><div style="color:#fff;font-size:16px;margin-top:12px;">Tab / 🗺 — close &nbsp;·&nbsp; <span style="color:#ffd21a;">●</span> you &nbsp;<span style="color:#2a6aff;">●</span> police &nbsp;<span style="color:#fff;">●</span> traffic &nbsp;<span style="color:#ff8ac8;">●</span> peds</div>';
+mapOverlayEl.innerHTML = '<div style="color:#ffd23f;font-size:26px;font-weight:900;letter-spacing:2px;margin-bottom:10px;">TROPICAL COAST — MAP</div><canvas id="bigMap" width="510" height="510" style="width:510px;height:510px;max-width:92vw;max-height:70vh;border:4px solid #fff;border-radius:50%;background:#2a8a4a;"></canvas><div style="color:#fff;font-size:16px;margin-top:12px;">Tab / 🗺 — close &nbsp;·&nbsp; <span style="color:#ffd21a;">●</span> you &nbsp;<span style="color:#2a6aff;">◉</span> police car &nbsp;<span style="color:#2a6aff;">■</span> officer &nbsp;<span style="color:#ff3b30;">◉</span> heli &nbsp;<span style="color:#fff;">●</span> traffic &nbsp;<span style="color:#ff8ac8;">●</span> peds</div>';
 document.body.appendChild(mapOverlayEl);
 var bigMapCanvas = document.getElementById('bigMap');
 var bigMapCtx = bigMapCanvas.getContext('2d');
@@ -411,12 +423,13 @@ function jumpBtnFire(e) { if (e) e.preventDefault(); startAudio(); if (typeof tr
 jumpBtnEl.addEventListener('touchstart', jumpBtnFire);
 jumpBtnEl.addEventListener('mousedown', jumpBtnFire);
 
-// Round 26 (item 6): the Settings list now matches what the game
-// actually does — it used to omit reload and jump entirely and never
-// said how fast running is (5 m/s walk, 8.5 m/s sprint, verified by
-// probe). M stays mute; the map is Tab / 🗺. The list lives in
-// index.html; hud.js corrects its text so the file stays untouched.
+// Round 28 (item 10, ROOT CAUSE): the controls row is prow[2], NOT
+// prow[1] — prow[1] is the Brightness slider row (added Round 27).
+// The old index clobbered the slider out of the DOM at load (its
+// input listener died with it), so live Settings showed only Sound +
+// controls and no brightness slider at all. Target the LAST prow.
 (function () {
   var rows = document.querySelectorAll('#settingsPanel .prow');
-  if (rows && rows[1]) rows[1].textContent = 'WASD / arrows — move & drive · E — enter / talk · Space — attack · J / ⬆ — jump · R — reload · 1-7 — weapons · Shift — run (8,5 m/s) · Tab / 🗺 — map (fullscreen) · M — mute · Esc / P — pause';
+  var ctl = rows && rows[2];
+  if (ctl && /WASD/.test(ctl.textContent)) ctl.textContent = 'WASD / arrows — move & drive · E — enter / talk · Space — attack · J / ⬆ — jump · R — reload · 1-7 — weapons · Shift — run (8,5 m/s) · Tab / 🗺 — map (fullscreen) · M — mute · Esc / P — pause';
 })();

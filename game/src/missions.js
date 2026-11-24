@@ -125,7 +125,15 @@ function tryAttack() {
     var nx = best.position.x + kx * 1.4, nz = best.position.z + kz * 1.4;
     if (walkable(nx, nz)) { best.position.x = nx; best.position.z = nz; }
     sparkT = 0.3;
-    if (best.userData.hp <= 0) { best.userData.downT = 8; best.userData.hp = 100; best.rotation.z = Math.PI / 2; }
+    if (best.userData.hp <= 0) {
+      best.userData.downT = 8; best.userData.hp = 100; best.rotation.z = Math.PI / 2;
+      // Round 28 (item 1, T-pose): a cop shot down mid-aim kept his
+      // arms frozen forward (-1.4/-1.2) while the body rolled 90 deg,
+      // so the arms stuck out sideways from the lying body like a
+      // crucifix on the beach. A fallen body lies with its arms along
+      // the torso, not out to the sides.
+      if (best.userData.armL) { best.userData.armL.rotation.x = 0; best.userData.armR.rotation.x = 0; }
+    }
     // Officers never flee — they chase back. Civilians run.
     if (officers.indexOf(best) < 0) startFlee(best);
     raiseWanted(1);
@@ -265,7 +273,7 @@ function tryEnter() {
       heading = rideHeading; heliAlt = 0;
       // Round 27 (P3 20 fix): land the heli itself — without this it
       // kept hovering at 12 m after Gito got out, floating mid-air.
-      rideObj.position.y = groundY(rideObj.position.x, rideObj.position.z);
+      rideObj.position.y = groundY(rideObj.position.x, rideObj.position.z) + 1.0; // rest altitude: skids on the ground
     }
     onFoot = true; gito.visible = true; speed = 0; rideSpeed = 0; rideMode = 'none'; rideObj = null;
   }
@@ -458,6 +466,12 @@ if (!cover) { try { applySave(JSON.parse(localStorage.getItem('tc-save') || 'nul
 updateObjective();
 
 // ---- Screen flow: splash -> menu -> dialogue -> game ----
+// Round 28 (item 11): the menu teaser line ("Finally, I'm back...")
+// is a first-visit greeting only. setScreen used to re-show it on
+// EVERY menu visit, so after New Game -> Quit to Menu the intro dialog
+// sat stuck over the main menu. It shows once per page load now;
+// quitting back to the menu shows the clean menu.
+var _menuDlgShown = false;
 function setScreen(s) {
   screen = s;
   document.body.className = 'mode-' + s;
@@ -465,7 +479,8 @@ function setScreen(s) {
   document.getElementById('menu').style.display = s === 'menu' ? 'block' : 'none';
   document.getElementById('dialogue').style.display = s === 'dialogue' ? 'block' : 'none';
   document.getElementById('skipBtn').style.display = s === 'dialogue' ? 'block' : 'none';
-  document.getElementById('menuDlg').style.display = s === 'menu' ? 'block' : 'none';
+  var _md = document.getElementById('menuDlg');
+  if (_md) { if (s === 'menu' && !_menuDlgShown) { _md.style.display = 'block'; _menuDlgShown = true; } else _md.style.display = 'none'; }
   hidePanels();
   var pm = document.getElementById('pauseMenu');
   if (pm) pm.style.display = 'none';
@@ -487,7 +502,24 @@ function refreshMenuBtns() {
   if (cb) { cb.style.opacity = hasSave() ? '1' : '0.45'; cb.disabled = !hasSave(); }
 }
 function showPanel(id) { hidePanels(); var el = document.getElementById(id); if (el) el.style.display = 'block'; }
-function hidePanels() { ['settingsPanel', 'creditsPanel'].forEach(function (id) { var el = document.getElementById(id); if (el) el.style.display = 'none'; }); }
+function hidePanels() { ['settingsPanel', 'creditsPanel', 'missionsPanel'].forEach(function (id) { var el = document.getElementById(id); if (el) el.style.display = 'none'; }); }
+// Round 28 (item 12): the mission list, openable from the main menu.
+// Every mission with its giver, reward and live status — done, current
+// (talk / do), or locked — so Gito can always see what is next without
+// starting a game. Built from the same `missions` table the game runs.
+function refreshMissionsPanel() {
+  var el = document.getElementById('missionsList');
+  if (!el) return;
+  var html = '';
+  missions.forEach(function (m, i) {
+    var st, col;
+    if (i < missionIdx) { st = '✓ DONE'; col = '#37b24a'; }
+    else if (i === missionIdx) { st = missionStage === 'talk' ? '▶ TALK TO ' + m.giver.toUpperCase() : '▶ ' + m.objective.toUpperCase(); col = '#ffd23f'; }
+    else { st = '🔒 LOCKED'; col = '#888888'; }
+    html += '<div class="prow" style="text-align:left;border-bottom:1px solid rgba(255,255,255,.15);padding:8px 0;"><b style="display:inline;color:#fff;font-size:18px;">' + (i + 1) + '. ' + m.name + '</b> <span style="color:#ffd23f;">$' + m.reward + '</span><br><span style="color:' + col + ';font-size:15px;">' + st + '</span> <span style="color:#ccc;font-size:14px;">· ' + m.giver + ' · ' + m.objective + '</span></div>';
+  });
+  el.innerHTML = html;
+}
 // Round 25 (bug #5): pause — Esc/P or the ☰ button. Freezes the sim
 // (render.js), offers Resume / Save / Quit to Menu. Never while
 // talking, so a dialogue cannot be paused mid-line.
@@ -509,6 +541,8 @@ document.getElementById('startBtn').addEventListener('click', function () { star
 document.getElementById('newGameBtn').addEventListener('click', function () { startAudio(); newGame(); });
 document.getElementById('continueBtn').addEventListener('click', function () { startAudio(); if (hasSave()) { try { applySave(JSON.parse(localStorage.getItem('tc-save') || 'null')); } catch (e) {} setScreen('game'); } });
 document.getElementById('settingsBtn').addEventListener('click', function () { startAudio(); showPanel('settingsPanel'); });
+document.getElementById('missionsBtn').addEventListener('click', function () { startAudio(); refreshMissionsPanel(); showPanel('missionsPanel'); });
+document.getElementById('missionsClose').addEventListener('click', function () { hidePanels(); });
 document.getElementById('creditsBtn').addEventListener('click', function () { startAudio(); showPanel('creditsPanel'); });
 document.getElementById('exitBtn').addEventListener('click', function () { startAudio(); setScreen('splash'); });
 document.getElementById('settingsClose').addEventListener('click', function () { hidePanels(); });
@@ -530,6 +564,10 @@ applyBrightness(_bv);
 var _bs = document.getElementById('brightSlider');
 if (_bs) _bs.addEventListener('input', function () { var v = parseInt(_bs.value, 10); try { localStorage.setItem('tc-brightness', String(v)); } catch (e) {} applyBrightness(v); });
 document.getElementById('resumeBtn').addEventListener('click', function () { setPaused(false); });
+// Round 28 (item 10): the pause menu had no Settings at all — the
+// brightness slider was only reachable from the main menu. It opens
+// the same panel; the game stays paused behind it.
+document.getElementById('pauseSettingsBtn').addEventListener('click', function () { startAudio(); showPanel('settingsPanel'); });
 document.getElementById('pauseSaveBtn').addEventListener('click', function () { saveGame(); var b2 = document.getElementById('pauseSaveBtn'); b2.textContent = '✓ Saved'; });
 document.getElementById('pauseQuitBtn').addEventListener('click', function () { saveGame(); setPaused(false); setScreen('menu'); });
 document.getElementById('skipBtn').addEventListener('click', function () { setScreen('game'); });
@@ -541,5 +579,8 @@ document.getElementById('splash').style.display = screen === 'splash' ? 'block' 
 document.getElementById('menu').style.display = screen === 'menu' ? 'block' : 'none';
 document.getElementById('dialogue').style.display = screen === 'dialogue' ? 'block' : 'none';
 document.getElementById('skipBtn').style.display = screen === 'dialogue' ? 'block' : 'none';
-document.getElementById('menuDlg').style.display = screen === 'menu' ? 'block' : 'none';
+// Round 28 (item 11): a direct ?screen=menu load counts as the one
+// first menu visit, so the teaser shows once and never sticks after a quit.
+if (screen === 'menu') { document.getElementById('menuDlg').style.display = 'block'; _menuDlgShown = true; }
+else document.getElementById('menuDlg').style.display = 'none';
 refreshMenuBtns();
