@@ -214,10 +214,18 @@ function nearestRideable() {
   // frames — strictly-nearest E then adopted the POLICE CRUISER instead
   // of the Coast GT (reproduced live: E2E probe, tryEnter straight after
   // a cruiser passed the east flank). The pill + arrow read this same
-  // helper, so they now point at the GT too. Bikes/boats/heli keep the
-  // strictly-nearest race against the own car — only adoptable CARS are
-  // demoted, because stealing one is a bonus, never the default.
-  if (best && best.adopt) {
+  // helper, so they now point at the GT too.
+  // Round 32 (Gito live 20:40 WIB): the R29 demotion only fired when the
+  // strictly-nearest pick was an adoptable CAR. From the passenger side
+  // (where the game spawns the player) the RED MOTOR parked beside the
+  // GT is nearer than the GT, so best was the bike (adopt=false) and the
+  // override never ran — 7x E + 1x MASUK never entered the GT, the HUD
+  // even said COAST GT while Gito sat on the motor. Now the own car
+  // beats ANY non-own ride within its 4 m enter radius (bike, boat,
+  // jetski, heli, adoptable car). Bikes/boats/heli still win wherever
+  // no own car is in range (pier, helipad), so their missions are
+  // untouched — only the spawn-side fight against the GT changes.
+  if (best && !(best.kind === 'car' && !best.adopt)) {
     var own = null, od = 4;
     function ownCar(obj, x, z) { var d = Math.hypot(x - px, z - pz); if (d < od) { od = d; own = { kind: 'car', obj: obj, x: x, z: z, adopt: false }; } }
     ownCar(null, carX, carZ);
