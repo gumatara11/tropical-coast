@@ -430,6 +430,34 @@ signPlane(signTextureFit('PORT WAREHOUSE', '#d8a020', '#ffffff'), 13, 3, -88, 6.
 signPlane(signTextureFit('PORT WAREHOUSE', '#d8a020', '#ffffff'), 11, 2.6, -79.9, 5.5, -185, Math.PI / 2);
 box(1, 18, 1, 0xffd23f, -70, 9, -190);
 box(14, 1, 1, 0xffd23f, -70, 18, -190);
+// Round 27 (Harbor): the quay was containers + one crane and bare
+// concrete — crates, barrels, bollards, a forklift and a second crane,
+// all literal coords, so the port reads busy from the road.
+[[-62, -172], [-64, -176], [-62, -180]].forEach(function (cr) {
+  box(1.6, 1.6, 1.6, 0x8a6a3a, cr[0], 0.8, cr[1]);
+});
+box(1.6, 1.6, 1.6, 0x8a6a3a, -63, 2.4, -176);
+[[-66, -188], [-64, -188], [-66, -186]].forEach(function (br) {
+  var barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.55, 1.2, 10), new THREE.MeshLambertMaterial({ color: 0x2a6ad8 }));
+  barrel.position.set(br[0], 0.6, br[1]); scene.add(barrel);
+});
+[-62, -64, -66, -68].forEach(function (bx) {
+  box(0.5, 0.9, 0.5, 0xffd23f, bx, 0.45, -168);
+});
+(function () {
+  var fk = new THREE.Group();
+  var fbody = new THREE.Mesh(new THREE.BoxGeometry(1.6, 1.0, 2.2), new THREE.MeshLambertMaterial({ color: 0xffd23f }));
+  fbody.position.y = 0.7; fk.add(fbody);
+  var fmast = new THREE.Mesh(new THREE.BoxGeometry(0.15, 2.2, 1.4), new THREE.MeshLambertMaterial({ color: 0x2a2a2a }));
+  fmast.position.set(0, 1.4, -1.2); fk.add(fmast);
+  var fork = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.08, 0.9), new THREE.MeshLambertMaterial({ color: 0x888888 }));
+  fork.position.set(0, 0.15, -1.7); fk.add(fork);
+  var fcab = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.9, 1.2), new THREE.MeshLambertMaterial({ color: 0x2a2a2a }));
+  fcab.position.set(0, 1.6, 0.3); fk.add(fcab);
+  fk.position.set(-70, 0, -180); fk.rotation.y = 0.5; scene.add(fk);
+})();
+box(1, 16, 1, 0xffd23f, -98, 8, -190);
+box(12, 1, 1, 0xffd23f, -98, 16, -190);
 (function () {
   var ship = new THREE.Group();
   var hull = new THREE.Mesh(new THREE.BoxGeometry(18, 3, 6), new THREE.MeshLambertMaterial({ color: 0x2a3a4a }));
@@ -445,7 +473,20 @@ function house(x, z, col, roofCol, gitoHouse) {
   box(6, 4, 6, col, x, 2, z);
   var roof = new THREE.Mesh(new THREE.ConeGeometry(4.6, 2.4, 4), new THREE.MeshLambertMaterial({ color: roofCol }));
   roof.position.set(x, 5.2, z); roof.rotation.y = Math.PI / 4; scene.add(roof);
-  if (gitoHouse) signPlane(signTexture('my house', '#ff5a8a', '#ffffff', false), 4, 1.4, x, 3.2, z + 3.1, 0);
+  // Round 27 (Residential): the houses were blank boxes with cone
+  // roofs — every house gets a door + two windows on its road-facing
+  // (east) front, so the block reads as homes, not crates.
+  var hGlass = new THREE.MeshLambertMaterial({ color: 0x9adfff });
+  var hDark = new THREE.MeshLambertMaterial({ color: 0x4a3a2a });
+  var hDoor = new THREE.Mesh(new THREE.BoxGeometry(0.1, 2.0, 1.0), hDark);
+  hDoor.position.set(x + 3.05, 1.0, z); scene.add(hDoor);
+  [-1.6, 1.6].forEach(function (dz) {
+    var hWin = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1.0, 1.2), hGlass);
+    hWin.position.set(x + 3.05, 2.4, z + dz); scene.add(hWin);
+  });
+  var hStep = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.2, 1.4), new THREE.MeshLambertMaterial({ color: 0x888888 }));
+  hStep.position.set(x + 3.3, 0.1, z); scene.add(hStep);
+  if (gitoHouse) signPlane(signTextureFit("GITO'S HOUSE", '#ff5a8a', '#ffffff'), 4.5, 1.2, x, 3.2, z + 3.1, 0);
 }
 house(-95, -130, 0xffe9a8, 0xd82a2a, false);
 house(-75, -130, 0xe8c8a8, 0x8a5a2a, false);
@@ -466,8 +507,46 @@ box(12, 6, 10, 0x888888, -95, 3, 110);
 // 4) Night Club: dark box, TROPICAL CLUB signs on both faces, neon bar.
 box(12, 8, 10, 0x2a2a4a, -85, 4, 125);
 signPlane(signTextureFit('TROPICAL CLUB', '#ff2ad8', '#ffffff'), 8, 2.4, -91, 6.5, 125, -Math.PI / 2);
-signPlane(signTextureFit('TROPICAL CLUB', '#ff2ad8', '#ffffff'), 12, 3, -78.9, 6.5, 125, Math.PI / 2);
+signPlane(signTextureFit('TROPICAL CLUB', '#ff2ad8', '#ffffff'), 9.5, 3, -78.9, 6.5, 125, Math.PI / 2);
 box(8, 0.4, 0.4, 0xff2ad8, -91, 8.2, 125);
+// Round 27 (Club): the road-facing east front was a blank dark wall
+// with a sign wider than the face — glass double door + windows, a
+// pink awning, a CLUB sign over the door, neon bars and a rope queue,
+// so it reads as a club entrance instead of a warehouse wall.
+(function () {
+  var cGlass = new THREE.MeshLambertMaterial({ color: 0x2a4a6a });
+  var cPink = new THREE.MeshBasicMaterial({ color: 0xff2ad8 });
+  var cDark = new THREE.MeshLambertMaterial({ color: 0x1a1a2a });
+  [-1.9, 1.9].forEach(function (dz) {
+    var cframe = new THREE.Mesh(new THREE.BoxGeometry(0.12, 1.8, 2.4), cDark);
+    cframe.position.set(-78.88, 1.8, 125 + dz); scene.add(cframe);
+    var cwin = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1.6, 2.2), cGlass);
+    cwin.position.set(-78.9, 1.8, 125 + dz); scene.add(cwin);
+  });
+  [-0.55, 0.55].forEach(function (dz) {
+    var cdoor = new THREE.Mesh(new THREE.BoxGeometry(0.1, 3.0, 1.1), cGlass);
+    cdoor.position.set(-78.9, 1.5, 125 + dz); scene.add(cdoor);
+  });
+  var cmull = new THREE.Mesh(new THREE.BoxGeometry(0.14, 3.0, 0.12), cDark);
+  cmull.position.set(-78.88, 1.5, 125); scene.add(cmull);
+  [-0.15, 0.15].forEach(function (dz) {
+    var chand = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.3, 0.08), new THREE.MeshLambertMaterial({ color: 0xdddddd }));
+    chand.position.set(-78.8, 1.4, 125 + dz); scene.add(chand);
+  });
+  signPlane(signTextureFit('CLUB', '#ff2ad8', '#ffffff'), 3, 1.2, -78.9, 4.6, 125, Math.PI / 2);
+  var cawn = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.12, 5.5), new THREE.MeshBasicMaterial({ color: 0xff2ad8 }));
+  cawn.position.set(-78.3, 3.6, 125); scene.add(cawn);
+  [-4.4, 4.4].forEach(function (dz) {
+    var cneon = new THREE.Mesh(new THREE.BoxGeometry(0.12, 3.5, 0.15), cPink);
+    cneon.position.set(-78.85, 2.5, 125 + dz); scene.add(cneon);
+  });
+  [-2.5, 2.5].forEach(function (dz) {
+    var qpost = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 1.0, 8), new THREE.MeshLambertMaterial({ color: 0xdddddd }));
+    qpost.position.set(-76.5, 0.5, 125 + dz); scene.add(qpost);
+  });
+  var qrope = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 5.0, 6), new THREE.MeshLambertMaterial({ color: 0xd82a2a }));
+  qrope.rotation.x = Math.PI / 2; qrope.position.set(-76.5, 0.9, 125); scene.add(qrope);
+})();
 // 5) Sunset Hill: big hill + viewpoint platform + two trees.
 (function () {
   var hill = new THREE.Mesh(new THREE.ConeGeometry(25, 18, 12), new THREE.MeshLambertMaterial({ color: 0x5a7a4a }));
@@ -577,6 +656,19 @@ for (var sr = 0; sr < 4; sr++) {
     plank.position.set(32, 0.5, 40 + pl * 1.4); plank.castShadow = true; plank.receiveShadow = true; scene.add(plank);
   }
   [-2, 2].forEach(function (dx) { for (var pp = 0; pp < 6; pp++) box(0.2, 1, 0.2, 0x6a4a2a, 32 + dx, 0, 42 + pp * 3); });
+  // Round 27 (Pier): the deck sat 0.5 m above the sand with no way
+  // up — a ramp at the shore end + side rails, and groundY (config.js)
+  // now returns 0.6 on the deck rect, so Gito walks ON the pier.
+  var ramp = new THREE.Mesh(new THREE.BoxGeometry(4, 0.15, 3.2), pierWood);
+  ramp.position.set(32, 0.33, 38.6); ramp.rotation.x = -0.21; scene.add(ramp);
+  [-1.9, 1.9].forEach(function (dx) {
+    var rail = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 17), new THREE.MeshLambertMaterial({ color: 0x8a6a3a }));
+    rail.position.set(32 + dx, 1.15, 48.5); scene.add(rail);
+    for (var rp = 0; rp < 5; rp++) {
+      var rpost = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.65, 0.08), new THREE.MeshLambertMaterial({ color: 0x8a6a3a }));
+      rpost.position.set(32 + dx, 0.85, 40.5 + rp * 4); scene.add(rpost);
+    }
+  });
 })();
 // Beach bar hut — pink, with plank trim, corner posts, base skirt, a framed
 // window and a striped awning over the counter.
@@ -657,13 +749,26 @@ function stopSign(x, z) {
   g.position.set(x, 0, z); scene.add(g); return g;
 }
 stopSign(-8.6, -163); stopSign(8.6, 143);
-signPlane(signTexture('TROPICAL COAST', '#ff2a8a', '#ffffff', false), 10, 3, -14, 9, -100, Math.PI / 2);
+signPlane(signTextureFit('TROPICAL COAST', '#ff2a8a', '#ffffff'), 10, 3, -14, 9, -100, Math.PI / 2);
 box(0.4, 9, 0.4, 0x666666, -14, 4.5, -100);
-signPlane(signTexture('SURF • SUN • FUN', '#2a9ad8', '#ffffff', false), 10, 3, -14, 9, 100, Math.PI / 2);
+signPlane(signTextureFit('SURF • SUN • FUN', '#2a9ad8', '#ffffff'), 10, 3, -14, 9, 100, Math.PI / 2);
 box(0.4, 9, 0.4, 0x666666, -14, 4.5, 100);
 box(3, 0.15, 1.2, 0x2a9ad8, -11, 1, -80);
 box(0.2, 1, 0.2, 0x666666, -12.4, 0.5, -80); box(0.2, 1, 0.2, 0x666666, -9.6, 0.5, -80);
 signPlane(signTexture('BUS', '#2a9ad8', '#ffffff', false), 1.2, 1.2, -11, 2.2, -80, Math.PI / 2);
+// Round 27 (Bus stop): the stop was a bench + a sign — a shelter roof
+// on two posts, and two street-name blades at the nearest corners.
+box(0.15, 2.6, 0.15, 0x2a2a3a, -12.4, 1.3, -80);
+box(0.15, 2.6, 0.15, 0x2a2a3a, -9.6, 1.3, -80);
+box(3.6, 0.12, 1.8, 0x2a9ad8, -11, 2.65, -80);
+(function () {
+  var pole1 = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 3.2, 8), new THREE.MeshLambertMaterial({ color: 0x2a2a2a }));
+  pole1.position.set(9.5, 1.6, 44); scene.add(pole1);
+  signPlane(signTextureFit('COAST RD', '#2a6a4a', '#ffffff'), 2.4, 0.6, 9.5, 3.1, 44, Math.PI / 2);
+  var pole2 = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 3.2, 8), new THREE.MeshLambertMaterial({ color: 0x2a2a2a }));
+  pole2.position.set(-26, 1.6, -58); scene.add(pole2);
+  signPlane(signTextureFit('AVENUE 1', '#2a6a4a', '#ffffff'), 2.4, 0.6, -26, 3.1, -58, 0);
+})();
 
 // ---- Ferris wheel + boats ----
 var wheel = new THREE.Group();

@@ -80,6 +80,28 @@ function makeCar(color, x, z, kind) {
     var split = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.08, 0.25), dark); split.position.set(0, 0.30, -2.48); g.add(split);
     var grille = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.16, 0.06), dark);
     grille.position.set(0, 0.56, -2.50); g.add(grille);
+    // Round 27 (P2 13): the Coast GT nose gets the sedan's chrome
+    // slats + a lower intake, so the grille reads as a grille from the
+    // front instead of one dark slab; LED strips over the lamps.
+    [-0.45, -0.15, 0.15, 0.45].forEach(function (gx) {
+      var gslat = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.14, 0.03), new THREE.MeshLambertMaterial({ color: 0xbbbbbb }));
+      gslat.position.set(gx, 0.56, -2.54); g.add(gslat);
+    });
+    var intake = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.10, 0.05), dark);
+    intake.position.set(0, 0.36, -2.50); g.add(intake);
+    [-0.8, 0.8].forEach(function (lx) {
+      var led = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.045, 0.04), new THREE.MeshBasicMaterial({ color: 0xd8f4ff }));
+      led.position.set(lx, 0.92, -2.44); led.rotation.x = -0.22; g.add(led);
+    });
+    // Round 27 (P2 13): fuel cap on the right rear flank + a fender
+    // vent behind each front wheel — the doors had handles and cuts
+    // but nothing else to catch the eye.
+    var fuelCap = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 0.03, 12), dark);
+    fuelCap.rotation.z = Math.PI / 2; fuelCap.position.set(1.14, 0.92, 1.35); g.add(fuelCap);
+    [-1.13, 1.13].forEach(function (vx) {
+      var vent = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.10, 0.30), dark);
+      vent.position.set(vx, 0.72, -1.15); g.add(vent);
+    });
     [-1.22, 1.22].forEach(function (mx) {
       var mir = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.12, 0.3), dark);
       mir.position.set(mx, 1.16, -0.15); g.add(mir);
@@ -188,6 +210,12 @@ function makeCar(color, x, z, kind) {
     nRearGlass.position.set(0, 1.12, 1.35); nRearGlass.rotation.x = 0.45; g.add(nRearGlass);
     var nGrille = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.2, 0.06), dark);
     nGrille.position.set(0, 0.52, -2.44); g.add(nGrille);
+    // Round 26 (item 10): chrome vertical slats across the grille so the
+    // sedan nose reads as a grille + lamps, not one dark slab.
+    [-0.6, -0.2, 0.2, 0.6].forEach(function (gx) {
+      var slat = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.18, 0.03), new THREE.MeshLambertMaterial({ color: 0x888888 }));
+      slat.position.set(gx, 0.52, -2.48); g.add(slat);
+    });
     var nFascia = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.32, 0.06), dark);
     nFascia.position.set(0, 0.48, 2.38); g.add(nFascia);
     [-1.05, 1.05].forEach(function (sx) {
@@ -232,38 +260,85 @@ function makeCar(color, x, z, kind) {
         var pushV = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.5, 0.1), dark); pushV.position.set(pvx, 0.59, -2.52); g.add(pushV);
       });
       var pRear = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.2, 0.05), dark); pRear.position.set(0, 0.69, 2.37); g.add(pRear);
+      // Round 27 (P2 19): POLICE painted on both doors (transparent
+      // canvas texture, reads as lettering on the white door) + a black
+      // side stripe low on the flank, so a cruiser reads as POLICE from
+      // the side, not just from the light bar.
+      [-1, 1].forEach(function (s) {
+        var doorTxt = new THREE.Mesh(new THREE.PlaneGeometry(1.15, 0.29), new THREE.MeshBasicMaterial({ map: policeTex, transparent: true }));
+        doorTxt.position.set(s * 1.08, 0.64, 0.10); doorTxt.rotation.y = s * Math.PI / 2; g.add(doorTxt);
+        var stripe = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.14, 2.6), dark);
+        stripe.position.set(s * 1.06, 0.44, 0.10); g.add(stripe);
+      });
     }
     if (kind === 'taxi') {
       var sign = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.28, 0.45), new THREE.MeshBasicMaterial({ color: 0xffd23f }));
       sign.position.set(0, 1.72, 0.15); g.add(sign);
     }
+    // Round 27 (P2 19): traffic variety — plain sedans/coupes get one
+    // deterministic extra by spawn position (no rnd()): roof rails, a
+    // rear spoiler, or front fog lamps, so no two traffic cars look
+    // identical from the street.
+    if (kind === 'sedan' || kind === 'coupe') {
+      var variant = ((Math.abs(x * 3 + z * 7)) % 3 + 3) % 3;
+      if (variant === 0) {
+        [-0.6, 0.6].forEach(function (rx) {
+          var rail = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.05, 1.5), dark);
+          rail.position.set(rx, 1.40, 0.15); g.add(rail);
+        });
+      } else if (variant === 1) {
+        var spo = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.05, 0.28), dark);
+        spo.position.set(0, 0.94, 2.28); g.add(spo);
+      } else {
+        [-0.7, 0.7].forEach(function (fx2) {
+          var fog = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.10, 0.05), new THREE.MeshBasicMaterial({ color: 0xfff6c8 }));
+          fog.position.set(fx2, 0.42, -2.46); g.add(fog);
+        });
+      }
+    }
   }
   // Black tires, gunmetal ring, five thin silver spokes, dark centre cap.
   // The front wheels are recorded so the gameplay can steer them.
+  // Round 26 (item 10): the old flat face disc + ring read as a 2D
+  // sticker — a rounded sidewall shoulder + a dished rim barrel give the
+  // wheel real depth instead of a flat circle.
   var wz = kind === 'sport' ? 1.7 : 1.5;
   var wx = kind === 'sport' ? 1.00 : 0.92;
   [[-wx, -wz], [wx, -wz], [-wx, wz], [wx, wz]].forEach(function (w) {
     var wg = new THREE.Group();
     if (w[1] < 0) { (g.userData.frontWheels = g.userData.frontWheels || []).push(wg); }
-    var tire = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 0.32, 12), tireMat);
+    var tire = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 0.32, 20), tireMat);
     tire.rotation.z = Math.PI / 2; wg.add(tire);
     var sgn = w[0] < 0 ? -1 : 1;
-    var face = new THREE.Mesh(new THREE.CircleGeometry(0.42, 16), new THREE.MeshBasicMaterial({ color: 0x0a0a0a }));
-    face.rotation.y = sgn * Math.PI / 2; face.position.x = sgn * 0.165; wg.add(face);
-    var ring = new THREE.Mesh(new THREE.RingGeometry(0.35, 0.40, 16), new THREE.MeshBasicMaterial({ color: 0x999999, side: THREE.DoubleSide }));
-    ring.rotation.y = sgn * Math.PI / 2; ring.position.x = sgn * 0.17; wg.add(ring);
+    var shoulder = new THREE.Mesh(new THREE.TorusGeometry(0.34, 0.075, 8, 20), new THREE.MeshLambertMaterial({ color: 0x141414 }));
+    shoulder.rotation.y = Math.PI / 2; shoulder.position.x = sgn * 0.14; wg.add(shoulder);
+    var barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.30, 0.30, 0.10, 16), new THREE.MeshLambertMaterial({ color: 0x555555 }));
+    barrel.rotation.z = Math.PI / 2; barrel.position.x = sgn * 0.12; wg.add(barrel);
+    var ring = new THREE.Mesh(new THREE.RingGeometry(0.26, 0.30, 16), new THREE.MeshBasicMaterial({ color: 0x999999, side: THREE.DoubleSide }));
+    ring.rotation.y = sgn * Math.PI / 2; ring.position.x = sgn * 0.175; wg.add(ring);
     for (var sp = 0; sp < 5; sp++) {
-      var spoke = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.60, 0.06), new THREE.MeshLambertMaterial({ color: 0xb0b0b0 }));
-      spoke.position.set(sgn * 0.175, 0, 0); spoke.rotation.x = sp * Math.PI / 5; wg.add(spoke);
+      var spoke = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.56, 0.07), new THREE.MeshLambertMaterial({ color: 0xb0b0b0 }));
+      spoke.position.set(sgn * 0.15, 0, 0); spoke.rotation.x = sp * Math.PI / 5; wg.add(spoke);
     }
-    var cap = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.38, 8), new THREE.MeshLambertMaterial({ color: 0x222222 }));
+    var cap = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.32, 8), new THREE.MeshLambertMaterial({ color: 0x111111 }));
     cap.rotation.z = Math.PI / 2; wg.add(cap);
     wg.position.set(w[0], 0.42, w[1]); g.add(wg);
   });
   [-0.8, 0.8].forEach(function (fx) {
-    var hl = new THREE.Mesh(new THREE.BoxGeometry(kind === 'sport' ? 0.62 : 0.35, kind === 'sport' ? 0.20 : 0.16, 0.06), new THREE.MeshBasicMaterial({ color: kind === 'sport' ? 0xffffff : 0xfff6c8 }));
+    var hlW = kind === 'sport' ? 0.62 : 0.35, hlH = kind === 'sport' ? 0.20 : 0.16;
+    var hlZ = kind === 'sport' ? -2.42 : -2.47, hlY = kind === 'sport' ? 0.74 : 0.69;
+    // Round 26 (item 10): the old bare white box read as a plain block —
+    // a dark surround frames the lens and a projector dot gives it a
+    // lamp shape instead of a flat slab.
+    var surround = new THREE.Mesh(new THREE.BoxGeometry(hlW + 0.10, hlH + 0.08, 0.04), dark);
+    surround.position.set(fx, hlY, hlZ + 0.02);
+    if (kind === 'sport') surround.rotation.x = -0.22;
+    g.add(surround);
+    var hl = new THREE.Mesh(new THREE.BoxGeometry(hlW, hlH, 0.06), new THREE.MeshBasicMaterial({ color: kind === 'sport' ? 0xffffff : 0xfff6c8 }));
     if (kind === 'sport') { hl.position.set(fx, 0.74, -2.42); hl.rotation.x = -0.22; } else { hl.position.set(fx, 0.69, -2.47); }
     g.add(hl);
+    var proj = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.05, 10), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+    proj.rotation.x = Math.PI / 2; proj.position.set(fx * 0.72, hlY, hlZ - 0.045); g.add(proj);
     var tl = new THREE.Mesh(new THREE.BoxGeometry(kind === 'sport' ? 0.5 : 0.65, 0.18, 0.06), new THREE.MeshBasicMaterial({ color: 0xff2222 }));
     tl.position.set(kind === 'sport' ? fx * 0.69 : fx, kind === 'sport' ? 0.72 : 0.74, kind === 'sport' ? 2.54 : 2.38); g.add(tl);
   });
@@ -291,6 +366,17 @@ var player = makeCar(0xffd21a, 0, 10, 'sport');
   });
   var fascia = new THREE.Mesh(new THREE.BoxGeometry(2.1, 0.35, 0.08), new THREE.MeshLambertMaterial({ color: 0x1a1a2a }));
   fascia.position.set(0, 0.48, 2.52); player.add(fascia);
+  // Round 27 (item 13): COAST GT rear badge on the tail band + GT
+  // fender badges, so the coupe carries its name like a real GT —
+  // the rear used to show only the plate.
+  var gtBadge = new THREE.Mesh(new THREE.PlaneGeometry(0.95, 0.24), new THREE.MeshBasicMaterial({ map: signTextureFit('COAST GT', '#1a1a2a', '#ffd23f') }));
+  gtBadge.position.set(0, 0.86, 2.53); player.add(gtBadge);
+  [-1, 1].forEach(function (s) {
+    var fb = new THREE.Mesh(new THREE.PlaneGeometry(0.40, 0.10), new THREE.MeshBasicMaterial({ map: signTexture('GT', '#1a1a2a', '#ffffff', false) }));
+    fb.position.set(s * 1.14, 0.98, -0.95); fb.rotation.y = s * Math.PI / 2; player.add(fb);
+  });
+  var splitLip = new THREE.Mesh(new THREE.BoxGeometry(2.15, 0.06, 0.35), new THREE.MeshLambertMaterial({ color: 0x1a1a2a }));
+  splitLip.position.set(0, 0.26, -2.52); player.add(splitLip);
   [-0.6, 0.6].forEach(function (ex) {
     var tip = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.08, 10), new THREE.MeshLambertMaterial({ color: 0xcccccc }));
     tip.rotation.x = Math.PI / 2; tip.position.set(ex, 0.50, 2.58); player.add(tip);
@@ -448,6 +534,18 @@ var heli = new THREE.Group();
   heli.userData.spot = spot;
   var belly = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.18, 3.4), new THREE.MeshLambertMaterial({ color: 0xe8e8e8 }));
   belly.position.set(0, -0.55, 0); heli.add(belly);
+  // Round 27 (P2 18): the heli was a smooth egg — side doors with
+  // windows + rear side windows, so it reads as a helicopter cabin.
+  [-1, 1].forEach(function (s) {
+    var door = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.72, 1.05), whiteM);
+    door.position.set(s * 1.17, 0.05, -0.2); heli.add(door);
+    var doorWin = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.38, 0.62), new THREE.MeshLambertMaterial({ color: 0x2a4a5a }));
+    doorWin.position.set(s * 1.21, 0.18, -0.25); heli.add(doorWin);
+    var doorHandle = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.05, 0.18), darkM);
+    doorHandle.position.set(s * 1.21, -0.08, 0.18); heli.add(doorHandle);
+    var rearWin = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.30, 0.50), new THREE.MeshLambertMaterial({ color: 0x2a4a5a }));
+    rearWin.position.set(s * 1.02, 0.12, 0.95); heli.add(rearWin);
+  });
   [-0.85, 0.85].forEach(function (sx) {
     var skid = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.1, 3.2), new THREE.MeshLambertMaterial({ color: 0x222222 }));
     skid.position.set(sx, -0.85, 0); heli.add(skid);
@@ -651,6 +749,27 @@ function makeMotorboat(color, x, z, heading, ph, allWhite) {
   var lower = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.35, 0.42), darkM); lower.position.set(0, 0.02, 0.12); motor.add(lower);
   var fin = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.22, 0.48), darkM); fin.position.set(0, -0.06, 0.14); motor.add(fin);
   motor.position.set(0, 0, 3.02); motor.rotation.x = 0.05; g.add(motor);
+  // Round 27 (P2 16): the boat was an open origami tub — a cuddy cabin
+  // with windows on the foredeck + a deck rail on both sides, so it
+  // reads as a real motorboat instead of a flat folded hull.
+  var cabin = new THREE.Mesh(new THREE.BoxGeometry(1.10, 0.55, 1.00), whiteM); cabin.position.set(0, 1.14, -1.45); g.add(cabin);
+  var cabinRoof = new THREE.Mesh(new THREE.BoxGeometry(1.16, 0.06, 1.06), whiteM); cabinRoof.position.set(0, 1.44, -1.45); g.add(cabinRoof);
+  [-1, 1].forEach(function (s) {
+    var cabWin = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.28, 0.62), glassM);
+    cabWin.position.set(s * 0.56, 1.20, -1.45); g.add(cabWin);
+    var cabWin2 = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.28, 0.30), glassM);
+    cabWin2.position.set(s * 0.56, 1.20, -0.85); g.add(cabWin2);
+  });
+  var cabFront = new THREE.Mesh(new THREE.BoxGeometry(0.90, 0.30, 0.03), glassM);
+  cabFront.position.set(0, 1.20, -1.96); cabFront.rotation.x = -0.25; g.add(cabFront);
+  [-1, 1].forEach(function (s) {
+    [-0.2, 0.7, 1.6].forEach(function (rz) {
+      var post = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.30, 6), whiteM);
+      post.position.set(s * (hullXAt(rz, 0.86) - 0.12), 1.03, rz); g.add(post);
+    });
+    var rail = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 1.85, 6), whiteM);
+    rail.rotation.x = Math.PI / 2; rail.position.set(s * (hullXAt(0.7, 0.86) - 0.12), 1.18, 0.7); g.add(rail);
+  });
   g.traverse(function (o) { if (o.isMesh) o.castShadow = true; });
   g.position.set(x, -0.22, z); g.rotation.y = heading;
   g.userData.baseY = -0.22; g.userData.ph = ph; g.userData.kind = 'boat';
@@ -698,6 +817,16 @@ function makeJetski(color, x, z, heading, ph) {
     bol.position.set(bx, 0.56, 0.15); g.add(bol);
   });
   var platform = new THREE.Mesh(new THREE.BoxGeometry(0.60, 0.05, 0.30), darkM); platform.position.set(0, 0.40, 1.15); g.add(platform);
+  // Round 27 (P2 17): the rear was a bare cyan block — a black deck mat
+  // on the platform, a red tail strip, an exhaust outlet and side vents
+  // give the back of the jetski something to look at.
+  var deckMat = new THREE.Mesh(new THREE.BoxGeometry(0.50, 0.03, 0.26), new THREE.MeshLambertMaterial({ color: 0x0a0a0a })); deckMat.position.set(0, 0.44, 1.15); g.add(deckMat);
+  var tailStrip = new THREE.Mesh(new THREE.BoxGeometry(0.40, 0.06, 0.04), new THREE.MeshBasicMaterial({ color: 0xff2222 })); tailStrip.position.set(0, 0.42, 1.31); g.add(tailStrip);
+  var jetExhaust = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.10, 8), darkM); jetExhaust.rotation.x = Math.PI / 2; jetExhaust.position.set(0, 0.22, 1.28); g.add(jetExhaust);
+  [-0.30, 0.30].forEach(function (vx) {
+    var vent = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.10, 0.30), darkM);
+    vent.position.set(vx, 0.38, 1.05); g.add(vent);
+  });
   var grab = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.4, 8), darkM); grab.rotation.z = Math.PI / 2; grab.position.set(0, 0.72, 1.02); g.add(grab);
   [-0.18, 0.18].forEach(function (gx) {
     var gleg = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.12, 6), darkM); gleg.position.set(gx, 0.66, 1.02); g.add(gleg);
@@ -789,11 +918,32 @@ function makeBike(color, x, z, heading, type) {
     var apronBox = new THREE.Mesh(new THREE.BoxGeometry(0.10, 0.08, 0.02), new THREE.MeshLambertMaterial({ color: 0x888888 })); apronBox.position.set(0, 0.55, -0.90); g.add(apronBox);
     // Square headlamp, BRIGHT pale yellow — the grey one read as a smudge.
     var lamp = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.18, 0.05), new THREE.MeshBasicMaterial({ color: 0xfff2b0 })); lamp.position.set(0, 0.80, -0.96); g.add(lamp);
-    var tail = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.06, 0.04), new THREE.MeshBasicMaterial({ color: 0xff2222 })); tail.position.set(0, 0.62, 0.88); g.add(tail);
-    [-0.10, 0.10].forEach(function (tx) {
-      var turn = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.04, 0.03), new THREE.MeshBasicMaterial({ color: 0xffaa00 }));
-      turn.position.set(tx, 0.62, 0.88); g.add(turn);
+    // Round 27 (item 14): amber indicators flanking the tail lens +
+    // a chrome grab rail over the rear — the P2 14 tail housing below
+    // covers the lens + plate.
+    [-0.13, 0.13].forEach(function (tx) {
+      var turn = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.05, 0.03), new THREE.MeshBasicMaterial({ color: 0xffaa00 }));
+      turn.position.set(tx, 0.64, 0.885); g.add(turn);
     });
+    var grabBar = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.32, 8), chromeM);
+    grabBar.rotation.z = Math.PI / 2; grabBar.position.set(0, 0.82, 0.80); g.add(grabBar);
+    [-0.13, 0.13].forEach(function (gx) {
+      var grabLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.08, 6), chromeM);
+      grabLeg.position.set(gx, 0.78, 0.80); g.add(grabLeg);
+    });
+    // Round 27 (P2 14): the rear was a bare hump + one small lamp.
+    // A chrome tail housing with a bigger red lens, a white rear plate,
+    // and a visible engine block with cooling fins under the hump, so
+    // the Vespa reads as a machine from behind, not a smooth toy.
+    var tailHouse = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.12, 0.03), chromeM); tailHouse.position.set(0, 0.62, 0.92); g.add(tailHouse);
+    var tailLens = new THREE.Mesh(new THREE.BoxGeometry(0.20, 0.08, 0.04), new THREE.MeshBasicMaterial({ color: 0xff2222 })); tailLens.position.set(0, 0.62, 0.94); g.add(tailLens);
+    var vPlate = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.12, 0.02), new THREE.MeshBasicMaterial({ color: 0xf2f2f2 })); vPlate.position.set(0, 0.48, 0.78); g.add(vPlate);
+    var vEngine = new THREE.Mesh(new THREE.BoxGeometry(0.30, 0.22, 0.34), darkM); vEngine.position.set(0, 0.40, 0.58); g.add(vEngine);
+    [0.34, 0.40, 0.46].forEach(function (fy) {
+      var vfin = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.02, 0.30), chromeM);
+      vfin.position.set(0, fy, 0.58); g.add(vfin);
+    });
+    var vEngineCap = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.04, 10), chromeM); vEngineCap.rotation.z = Math.PI / 2; vEngineCap.position.set(0.17, 0.40, 0.58); g.add(vEngineCap);
     var stand = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.4, 6), darkM); stand.position.set(-0.14, 0.16, 0.2); stand.rotation.z = 0.5; g.add(stand);
   } else {
     // Sport bike: one continuous angular top line (low nose → fairing →
@@ -835,9 +985,17 @@ function makeBike(color, x, z, heading, type) {
     fp.lineTo(-0.35, 0.56);
     fp.lineTo(-0.70, 0.52);
     fp.closePath();
-    var fairGeo = new THREE.ExtrudeGeometry(fp, { depth: 0.24, bevelEnabled: true, bevelThickness: 0.02, bevelSize: 0.02, bevelSegments: 1, curveSegments: 4 });
+    var fairGeo = new THREE.ExtrudeGeometry(fp, { depth: 0.38, bevelEnabled: true, bevelThickness: 0.02, bevelSize: 0.02, bevelSegments: 1, curveSegments: 4 });
     var fairing = new THREE.Mesh(fairGeo, bodyM);
-    fairing.rotation.y = -Math.PI / 2; fairing.position.x = 0.13; g.add(fairing);
+    fairing.rotation.y = -Math.PI / 2; fairing.position.x = 0.19; g.add(fairing);
+    // Round 27 (P2 15): the old fairing was only 0.24 wide — narrower
+    // than the tank, so from the side the bike read as a naked cruiser.
+    // Full-width fairing + a belly pan under the engine close the gap
+    // between the wheels, like a real faired sport bike.
+    var belly = new THREE.Mesh(new THREE.BoxGeometry(0.30, 0.20, 0.95), bodyM);
+    belly.position.set(0, 0.30, 0.05); g.add(belly);
+    var bellyLip = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.05, 0.50), darkM);
+    bellyLip.position.set(0, 0.22, -0.30); g.add(bellyLip);
     // Tank: TALL rounded hump rising well above the fairing top line so
     // it reads as a separate tank — the flat one merged into the fairing.
     var tankBall = new THREE.Mesh(new THREE.SphereGeometry(0.5, 14, 10), bodyM);
@@ -926,6 +1084,18 @@ function makeTourHeli() {
   var tr2 = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.18, 1.2), darkM); tailRotor.add(tr2);
   g.add(tailRotor); g.userData.tailRotor = tailRotor;
   var mast = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.5, 8), darkM); mast.position.y = 0.95; g.add(mast);
+  // Round 27 (P2 18): side doors with windows + rear side windows —
+  // the tour heli was a smooth egg with one glass bubble.
+  [-0.75, 0.75].forEach(function (sx) {
+    var door = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.72, 1.05), whiteM);
+    door.position.set(sx * 1.55, 0.05, -0.2); g.add(door);
+    var doorWin = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.38, 0.62), glassM);
+    doorWin.position.set(sx * 1.60, 0.18, -0.25); g.add(doorWin);
+    var doorHandle = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.05, 0.18), darkM);
+    doorHandle.position.set(sx * 1.60, -0.08, 0.18); g.add(doorHandle);
+    var rearWin = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.30, 0.50), glassM);
+    rearWin.position.set(sx * 1.31, 0.12, 0.95); g.add(rearWin);
+  });
   var rotor = new THREE.Group(); rotor.position.y = 1.2;
   var rb1 = new THREE.Mesh(new THREE.BoxGeometry(7.6, 0.07, 0.38), darkM); rotor.add(rb1);
   var rb2 = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.07, 7.6), darkM); rotor.add(rb2);
@@ -976,3 +1146,22 @@ var bikes = [
 ];
 // Tour helicopter circling slowly over the beach.
 var tourHeli = makeTourHeli();
+// Round 27 (P3 20): a PARKED tour heli on a beach helipad, rideable
+// (E) — the circling tour heli and the police heli both fly too high to
+// board. The parked heli never moves on its own; it only flies while
+// Gito is in it (render.js 'heli' branch).
+var parkedHeli = makeTourHeli();
+parkedHeli.position.set(24, 0, 165);
+parkedHeli.rotation.y = 0.6;
+(function () {
+  var pad = new THREE.Mesh(new THREE.CircleGeometry(5.5, 24), new THREE.MeshLambertMaterial({ color: 0x3a3a4a }));
+  pad.rotation.x = -Math.PI / 2; pad.position.set(24, 0.05, 165); scene.add(pad);
+  var padRing = new THREE.Mesh(new THREE.RingGeometry(4.9, 5.5, 24), new THREE.MeshBasicMaterial({ color: 0xffd23f, side: THREE.DoubleSide }));
+  padRing.rotation.x = -Math.PI / 2; padRing.position.set(24, 0.06, 165); scene.add(padRing);
+  var hBar1 = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.02, 2.6), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+  hBar1.position.set(23.1, 0.07, 165); scene.add(hBar1);
+  var hBar2 = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.02, 2.6), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+  hBar2.position.set(24.9, 0.07, 165); scene.add(hBar2);
+  var hBar3 = new THREE.Mesh(new THREE.BoxGeometry(2.3, 0.02, 0.5), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+  hBar3.position.set(24, 0.07, 165); scene.add(hBar3);
+})();

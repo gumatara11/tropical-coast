@@ -51,5 +51,6 @@ function groundY(x, z) {
   if (x >= 8 && x < 14) return 0.16;
   if (x >= -14 && x < -8) return 0.145;
   if (x >= 14 && x < 30) return 0.06;
+  if (x >= 30 && x <= 34 && z >= 38 && z <= 58) return 0.6; // pier deck (round 27)
   return 0;
 }

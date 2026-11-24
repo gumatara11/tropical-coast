@@ -76,3 +76,14 @@ var plateTex = (function () {
   g.fillText('TC-128', 128, 34);
   return new THREE.CanvasTexture(cv);
 })();
+// Round 27 (P2 19): POLICE door lettering — black bold text on a
+// transparent canvas, so it reads as painted on the white cruiser door
+// instead of a pasted white plate.
+var policeTex = (function () {
+  var cv = document.createElement('canvas'); cv.width = 512; cv.height = 128;
+  var g = cv.getContext('2d');
+  g.clearRect(0, 0, 512, 128);
+  g.fillStyle = '#111111'; g.font = 'bold 92px Arial'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillText('POLICE', 256, 66);
+  return new THREE.CanvasTexture(cv);
+})();

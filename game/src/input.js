@@ -3,6 +3,34 @@
 // engine starts on the first keypress — browsers only allow sound after a
 // user gesture.
 var keys = {};
+// Round 26 (item 6): manual reload — R refills the magazine from the
+// reserve (same pools as spendAmmo in missions.js). The old game had
+// no R handler at all: R at 21/120 did nothing, and the magazine only
+// refilled by itself once it hit 0. Full mag or empty reserve: no-op.
+var RELOAD_POOLS = { 1: ['ammo', 'reserve', 12], 2: ['smgAmmo', 'smgReserve', 24], 3: ['sgAmmo', 'sgReserve', 6], 4: ['rfAmmo', 'rfReserve', 20], 5: ['snAmmo', 'snReserve', 5] };
+function reloadWeapon() {
+  if (screen !== 'game' && screen !== 'drive') return;
+  if (!onFoot || talking || cover) return;
+  var p = RELOAD_POOLS[weapon];
+  if (!p) return;
+  var mag = window[p[0]], res = window[p[1]];
+  if (mag >= p[2] || res <= 0) return;
+  var n = Math.min(p[2] - mag, res);
+  window[p[0]] = mag + n;
+  window[p[1]] = res - n;
+  attackCd = 0.9;
+  window.__reloadFlash = true;
+  setTimeout(function () { window.__reloadFlash = false; }, 900);
+  if (typeof playReload === 'function') playReload();
+}
+// Round 26 (item 6): jump — Space stays Attack (per Settings), so jump
+// gets its own key: J on keyboard, the ⬆ button on touch (hud.js).
+// tryJump lives in render.js; guard so a missing def can never throw.
+function requestJump() { if (typeof tryJump === 'function') tryJump(); }
+// Round 26 (item 6): fullscreen map — Tab toggles it (toggleMap lives
+// in hud.js), M stays mute. preventDefault: Tab would otherwise move
+// keyboard focus off the game.
+function requestMap() { if (typeof toggleMap === 'function') toggleMap(); }
 window.addEventListener('keydown', function (e) {
   keys[e.code] = true;
   if (e.code === 'KeyE') tryEnter();
@@ -12,6 +40,9 @@ window.addEventListener('keydown', function (e) {
   // 1-7 pick a weapon. (The game shipped with weapon slots on the HUD
   // but no attack input at all, so Gito could not punch.)
   if (e.code === 'Space') { e.preventDefault(); tryAttack(); }
+  if (e.code === 'KeyR') reloadWeapon();
+  if (e.code === 'KeyJ') requestJump();
+  if (e.code === 'Tab') { e.preventDefault(); requestMap(); }
   if (e.code && e.code.indexOf('Digit') === 0) { var n = +e.code.slice(5); if (n >= 1 && n <= 7) weapon = n; }
   startAudio();
 });

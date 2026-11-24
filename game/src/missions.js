@@ -37,8 +37,12 @@ var adoptedCar = null;
 var lastRaiseT = -99;
 // Health + armour: collisions damage armour first, then health; health
 // regens slowly once the heat is off. Ammo is the real pistol loadout.
+// Round 26 (item 4): BUSTED — health CAN reach 0 now (the old floor at
+// 5 made Gito unkillable); render.js freezes the sim and shows the
+// BUSTED overlay when health hits 0, hud.js clears this on respawn.
 var health = 100, armour = 50, ammo = 12, reserve = 60, lastHitT = -99;
-function damagePlayer(n) { lastHitT = t; if (armour > 0) { var a = Math.min(armour, n); armour -= a; n -= a; } if (n > 0) health = Math.max(5, health - n); }
+var busted = false;
+function damagePlayer(n) { lastHitT = t; if (armour > 0) { var a = Math.min(armour, n); armour -= a; n -= a; } if (n > 0) health = Math.max(0, health - n); }
 // Round 19: combat — the game shipped with weapon slots on the HUD but NO
 // way to attack at all (no input, no hit code), so Gito could not punch.
 // Weapon 1..7, picked with keys 1-7 or by tapping a slot; fist/bat are
@@ -170,6 +174,33 @@ function nearestAdoptable(maxD) {
   });
   return best;
 }
+// Round 26 (item 8): the nearest rideable vehicle of ANY kind within
+// its own enter radius, or null. Own car / parked cars / adoptable cars
+// (police, taxi, traffic) share radius 4; boats + jetskis board from
+// radius 6; bikes radius 4. Strictly nearest — no kind outranks another.
+function nearestRideable() {
+  var best = null, bd = 1e9;
+  function consider(kind, obj, x, z, r, adopt) {
+    var d = Math.hypot(x - px, z - pz);
+    if (d < r && d < bd) { bd = d; best = { kind: kind, obj: obj, x: x, z: z, adopt: !!adopt }; }
+  }
+  consider('car', null, carX, carZ, 4, false);
+  if (carMesh !== player) consider('car', player, player.position.x, player.position.z, 4, false);
+  if (carMesh !== parked1) consider('car', parked1, parked1.position.x, parked1.position.z, 4, false);
+  if (carMesh !== parked2) consider('car', parked2, parked2.position.x, parked2.position.z, 4, false);
+  adoptableList().forEach(function (v) {
+    if (v !== carMesh) consider('car', v, v.position.x, v.position.z, 4, true);
+  });
+  motorboats.concat(jetskis).forEach(function (v) {
+    consider(v.userData.kind, v, v.position.x, v.position.z, 6, false);
+  });
+  bikes.forEach(function (v) { consider('bike', v, v.position.x, v.position.z, 4, false); });
+  // Round 27 (P3 20): the parked tour heli boards from radius 6, like
+  // the boats. The circling tour heli and the police heli are NOT here
+  // — they fly too high to board.
+  if (typeof parkedHeli !== 'undefined' && parkedHeli) consider('heli', parkedHeli, parkedHeli.position.x, parkedHeli.position.z, 6, false);
+  return best;
+}
 function tryEnter() {
   if (screen !== 'game' && screen !== 'drive') return;
   if (talking) { advanceTalk(); return; }
@@ -180,43 +211,44 @@ function tryEnter() {
   // distance readout (hud.js) pointing the way.
   if (onFoot && m && missionStage === 'talk' && Math.hypot(m.giverObj.position.x - px, m.giverObj.position.z - pz) < 4.5) { startTalk(m); return; }
   if (onFoot) {
-    var d = Math.hypot(carX - px, carZ - pz);
-    if (d < 4) { onFoot = false; rideMode = 'car'; gito.visible = false; speed = 0; return; }
-    // Round 22: the parked cars are enterable too — adopting one makes
-    // it the active car (carX/carZ/carHeading follow it, carMesh swaps
-    // to its mesh) and the yellow coupe stays parked where it was, still
-    // enterable itself. The drive branch + solid-body list already use
-    // carX/carZ, so an adopted car drives exactly like the coupe.
-    var pk = null;
-    if (carMesh !== player && Math.hypot(player.position.x - px, player.position.z - pz) < 4) pk = player;
-    else if (carMesh !== parked1 && Math.hypot(parked1.position.x - px, parked1.position.z - pz) < 4) pk = parked1;
-    else if (carMesh !== parked2 && Math.hypot(parked2.position.x - px, parked2.position.z - pz) < 4) pk = parked2;
-    if (pk) {
-      carMesh = pk; carX = pk.position.x; carZ = pk.position.z; carHeading = pk.rotation.y;
-      onFoot = false; rideMode = 'car'; gito.visible = false; speed = 0; return;
+    // Round 26 (item 8): enter the NEAREST rideable vehicle of any kind
+    // — the old first-match cascade let a police car 2.5 m away win over
+    // a bike 1.5 m away, so MASUK + the arrow always pointed at the
+    // police car even when the bike was closer. One helper feeds both
+    // tryEnter and the prompt, so they can never disagree.
+    var nr = nearestRideable();
+    if (nr) {
+      if (nr.kind === 'car') {
+        // Round 25 (bug #4): adopt a police car, the taxi or a traffic
+        // car — the README always said "drive anything". Taking one stops
+        // its AI (userData.adopted) so it drives exactly like the coupe;
+        // the drive branch + solid-body list already run off carX/carZ.
+        // A moving car is taken from where it is, at its heading. The
+        // parked cars work the same way — adopting one makes it the
+        // active car and the yellow coupe stays parked where it was,
+        // still enterable itself.
+        if (nr.adopt) {
+          var adopt = nr.obj;
+          if (adopt === taxi) adopt.userData.driveName = 'TAXI';
+          else if (adopt === police || adopt === police2 || adopt === police3 || adopt === police4 || adopt === police5 || adopt === police6) adopt.userData.driveName = 'POLICE CRUISER';
+          else adopt.userData.driveName = 'CITY CAR';
+          adoptedCar = adopt; carMesh = adopt;
+          adopt.userData.adopted = true;
+          carX = adopt.position.x; carZ = adopt.position.z; carHeading = adopt.rotation.y;
+        } else if (nr.obj) {
+          carMesh = nr.obj; carX = nr.obj.position.x; carZ = nr.obj.position.z; carHeading = nr.obj.rotation.y;
+        }
+        onFoot = false; rideMode = 'car'; gito.visible = true; speed = 0; return;
+      }
+      // Boats + jetskis: board from the shallows (radius 6, wade to x 34).
+      // Gito stays visible on water vehicles and bikes — the per-frame
+      // rider pose seats him on the vehicle.
+      if (nr.kind === 'boat' || nr.kind === 'jetski') { onFoot = false; rideMode = nr.kind; rideObj = nr.obj; rideHeading = nr.obj.rotation.y; rideSpeed = 0; return; }
+      if (nr.kind === 'bike') { onFoot = false; rideMode = 'bike'; rideObj = nr.obj; rideHeading = nr.obj.rotation.y; rideSpeed = 0; return; }
+      // Round 27 (P3 20): the parked tour heli — same board radius as
+      // the boats; the heli branch in render.js flies it.
+      if (nr.kind === 'heli') { onFoot = false; rideMode = 'heli'; rideObj = nr.obj; rideHeading = nr.obj.rotation.y; rideSpeed = 0; heliAlt = 0; return; }
     }
-    // Round 25 (bug #4): adopt a police car, the taxi or a traffic car
-    // — the README always said "drive anything". Taking one stops its
-    // AI (userData.adopted) so it drives exactly like the coupe; the
-    // drive branch + solid-body list already run off carX/carZ. A moving
-    // car is taken from where it is, at its heading.
-    var adopt = nearestAdoptable(4);
-    if (adopt) {
-      if (adopt === taxi) adopt.userData.driveName = 'TAXI';
-      else if (adopt === police || adopt === police2 || adopt === police3 || adopt === police4 || adopt === police5 || adopt === police6) adopt.userData.driveName = 'POLICE CRUISER';
-      else adopt.userData.driveName = 'CITY CAR';
-      adoptedCar = adopt; carMesh = adopt;
-      adopt.userData.adopted = true;
-      carX = adopt.position.x; carZ = adopt.position.z; carHeading = adopt.rotation.y;
-      onFoot = false; rideMode = 'car'; gito.visible = false; speed = 0; return;
-    }
-    // Boats + jetskis: board from the shallows (radius 6, wade to x 34).
-    // Gito stays visible on water vehicles and bikes — the per-frame rider
-    // pose seats him on the vehicle (the car hides him, he's inside).
-    var wv = nearestVeh(motorboats.concat(jetskis), 6);
-    if (wv) { onFoot = false; rideMode = wv.userData.kind; rideObj = wv; rideHeading = wv.rotation.y; rideSpeed = 0; return; }
-    var bk = nearestVeh(bikes, 4);
-    if (bk) { onFoot = false; rideMode = 'bike'; rideObj = bk; rideHeading = bk.rotation.y; rideSpeed = 0; return; }
   } else {
     // Hand an adopted car back to its AI when Gito gets out — it
     // resumes patrolling/driving once it is no longer the active car.
@@ -224,6 +256,14 @@ function tryEnter() {
     if (rideMode === 'car') { px = carX + 2; pz = carZ + 2; heading = carHeading; }
     else if (rideMode === 'boat' || rideMode === 'jetski') { px = 29; pz = Math.max(-205, Math.min(205, rideObj.position.z)); heading = rideHeading; }
     else if (rideMode === 'bike') { px = rideObj.position.x + 2; pz = rideObj.position.z + 2; heading = rideHeading; rideObj.rotation.z = 0; }
+    // Round 27 (P3 20): getting out of the heli drops Gito on the ground
+    // below — on walkable ground beside it, or at the beach edge if the
+    // heli is over water / a rooftop (never stranded in the sea).
+    else if (rideMode === 'heli') {
+      if (walkable(rideObj.position.x + 2, rideObj.position.z + 2)) { px = rideObj.position.x + 2; pz = rideObj.position.z + 2; }
+      else { px = 29; pz = Math.max(-205, Math.min(205, rideObj.position.z)); }
+      heading = rideHeading; heliAlt = 0;
+    }
     onFoot = true; gito.visible = true; speed = 0; rideSpeed = 0; rideMode = 'none'; rideObj = null;
   }
 }
@@ -253,7 +293,30 @@ var missions = [
       ['Gito', "So, what's next? The night's still young."],
       ['Max', 'The pier. Sunset, sea breeze, cold drinks at the Beach Bar. Go — I will catch up later.']
     ],
-    objective: 'Drive to the Pier', reward: 800, check: { x: 30, z: 52, r: 6 } }
+    objective: 'Drive to the Pier', reward: 800, check: { x: 30, z: 52, r: 6 } },
+  // Round 27 (A): missions 4-6. M4 flies the tour heli, M5 sails the
+  // boat south, M6 is the Coast Sprint time trial (also item C).
+  { name: 'Island Tour', giver: 'Luna', giverObj: woman,
+    lines: [
+      ['Luna', 'Gito! There is a tour heli parked on the south beach. Take it up — the whole coast looks different from the sky.'],
+      ['Gito', 'A heli? Now we are talking.'],
+      ['Luna', 'Fly out over the Pier, nice and slow. The boats will love the show.']
+    ],
+    objective: 'Fly the tour heli over the Pier', reward: 1000, check: { x: 45, z: 52, r: 10, vehicle: 'heli' } },
+  { name: 'Harbor Run', giver: 'Ray', giverObj: dockWorker,
+    lines: [
+      ['Ray', 'One more run, kid. A crate needs to reach the far buoy, south end of the bay.'],
+      ['Gito', 'By boat, I guess. The coupe does not float.'],
+      ['Ray', 'The white boat at the harbor is yours. Mind the waves — and the tourists.']
+    ],
+    objective: 'Take the boat to the far south buoy', reward: 1200, check: { x: 38, z: 170, r: 10, vehicle: 'boat' } },
+  { name: 'Coast Sprint', giver: 'Max', giverObj: bouncer,
+    lines: [
+      ['Max', 'Alright, hotshot. Coast Road, end to end — north gate in 45 seconds or you are slow.'],
+      ['Gito', '45 seconds? The GT can do it in her sleep.'],
+      ['Max', 'Then stop talking and drive. Clock starts when you leave the Pier.']
+    ],
+    objective: 'Race the coupe to the north end — beat 45s!', reward: 1500, par: 45, check: { x: 0, z: -190, r: 10, vehicle: 'car' } }
 ];
 var missionIdx = 0, missionStage = 'talk'; // 'talk' -> 'do' -> next mission
 var talking = false, talkLines = [], talkIdx = 0, talkAfter = null;
@@ -303,22 +366,92 @@ function advanceTalk() {
 if (talkBoxEl) talkBoxEl.addEventListener('click', advanceTalk);
 function completeMission() {
   var m = curMission(); if (!m) return;
-  setMoney(money + m.reward);
+  // Round 27 (C): the Coast Sprint is a time trial — the stage timer
+  // (stageStartT) is the clock; finishing under par pays a $500 bonus.
+  var elapsed = (typeof t !== 'undefined' && typeof stageStartT !== 'undefined') ? Math.max(0, Math.floor(t - stageStartT)) : 0;
+  var bonus = (m.par && elapsed > 0 && elapsed <= m.par) ? 500 : 0;
+  setMoney(money + m.reward + bonus);
+  addRespect(m.name === 'Coast Sprint' ? 15 : 10);
   missionIdx++; missionStage = 'talk';
   if (bannerEl) {
-    bannerEl.textContent = missionIdx >= missions.length ? 'All Missions Complete! +$' + m.reward : 'Mission Complete! +$' + m.reward;
+    if (m.par) bannerEl.textContent = 'Coast Sprint finished in ' + elapsed + 's' + (bonus ? ' — UNDER PAR! +$500 bonus' : ' (par ' + m.par + 's)') + ' · All Missions Complete! +$' + (m.reward + bonus);
+    else bannerEl.textContent = missionIdx >= missions.length ? 'All Missions Complete! +$' + m.reward : 'Mission Complete! +$' + m.reward;
     bannerEl.style.display = 'block';
   }
   bannerT = 3;
   saveGame();
   updateObjective();
 }
+// Round 27 (B): respect — one progression number for the whole game.
+// +10 per mission (+15 for the Sprint). Levels are display-only titles;
+// the HUD chip (hud.js) shows the number + title after every change.
+var respect = 0;
+var RESPECT_LEVELS = [[0, 'NOBODY'], [10, 'LOCAL'], [25, 'REGULAR'], [40, 'RESPECTED'], [60, 'COAST LEGEND'], [80, 'KING OF THE COAST']];
+function respectLevel() {
+  var lv = RESPECT_LEVELS[0][1];
+  RESPECT_LEVELS.forEach(function (r) { if (respect >= r[0]) lv = r[1]; });
+  return lv;
+}
+function addRespect(n) {
+  respect = Math.min(100, respect + n);
+  if (typeof respectEl !== 'undefined' && respectEl) respectEl.textContent = '★ RESPECT ' + respect + ' — ' + respectLevel();
+}
 // Round 25 (bug #5): one save call for every save path — mission
 // complete, the pause menu's Save button.
-function saveGame() { try { localStorage.setItem('tc-save', JSON.stringify({ mission: missionIdx, money: money })); } catch (e) {} }
+// Round 26 (worker A, item 1): the old save only kept {mission, money},
+// so Continue restored a mission number and cash but NOT the stage,
+// health, armour, weapon or ammo — a mid-Mission-1 save reloaded as a
+// fresh game ($5,000, pistol 12/60, timer 00:00, Mission 1). The save
+// now keeps the full combat + mission state, and the stage timer.
+function saveGame() {
+  try {
+    localStorage.setItem('tc-save', JSON.stringify({
+      mission: missionIdx, stage: missionStage, money: money,
+      health: Math.round(health), armour: Math.round(armour),
+      weapon: weapon, ammo: ammo, reserve: reserve,
+      smgAmmo: smgAmmo, smgReserve: smgReserve,
+      sgAmmo: sgAmmo, sgReserve: sgReserve,
+      rfAmmo: rfAmmo, rfReserve: rfReserve,
+      snAmmo: snAmmo, snReserve: snReserve,
+      carCond: carCond, respect: respect,
+      stageElapsed: (typeof t !== 'undefined') ? Math.max(0, Math.floor(t - stageStartT)) : 0
+    }));
+  } catch (e) {}
+}
+// Apply a parsed save onto live state. Missing fields (old saves) fall
+// back to the defaults, so a {mission, money} save still loads.
+function applySave(sv) {
+  if (!sv) return;
+  missionIdx = sv.mission || 0;
+  missionStage = (sv.stage === 'do' || sv.stage === 'talk') ? sv.stage : 'talk';
+  if (sv.money) setMoney(sv.money);
+  if (typeof sv.health === 'number') health = sv.health;
+  if (typeof sv.armour === 'number') armour = sv.armour;
+  if (typeof sv.weapon === 'number') weapon = sv.weapon;
+  if (typeof sv.ammo === 'number') ammo = sv.ammo;
+  if (typeof sv.reserve === 'number') reserve = sv.reserve;
+  if (typeof sv.smgAmmo === 'number') smgAmmo = sv.smgAmmo;
+  if (typeof sv.smgReserve === 'number') smgReserve = sv.smgReserve;
+  if (typeof sv.sgAmmo === 'number') sgAmmo = sv.sgAmmo;
+  if (typeof sv.sgReserve === 'number') sgReserve = sv.sgReserve;
+  if (typeof sv.rfAmmo === 'number') rfAmmo = sv.rfAmmo;
+  if (typeof sv.rfReserve === 'number') rfReserve = sv.rfReserve;
+  if (typeof sv.snAmmo === 'number') snAmmo = sv.snAmmo;
+  if (typeof sv.snReserve === 'number') snReserve = sv.snReserve;
+  if (typeof sv.carCond === 'number') carCond = sv.carCond;
+  if (typeof sv.respect === 'number') { respect = sv.respect; if (typeof respectEl !== 'undefined' && respectEl) respectEl.textContent = '★ RESPECT ' + respect + ' — ' + respectLevel(); }
+  // Keep the stage timer running from the saved elapsed time instead of
+  // restarting at 00:00 (only once the clock exists — at boot load the
+  // Continue handler re-applies the save with the clock running).
+  if (typeof t !== 'undefined' && typeof sv.stageElapsed === 'number') {
+    stageStartT = t - sv.stageElapsed;
+    lastStageKey = missionIdx + '/' + missionStage;
+  }
+  updateObjective();
+}
 function hasSave() { try { return !!localStorage.getItem('tc-save'); } catch (e) { return false; } }
 // Load saved progress (not in cover renders).
-if (!cover) { try { var sv = JSON.parse(localStorage.getItem('tc-save') || 'null'); if (sv) { missionIdx = sv.mission || 0; if (sv.money) setMoney(sv.money); } } catch (e) {} }
+if (!cover) { try { applySave(JSON.parse(localStorage.getItem('tc-save') || 'null')); } catch (e) {} }
 updateObjective();
 
 // ---- Screen flow: splash -> menu -> dialogue -> game ----
@@ -348,7 +481,7 @@ function newGame() {
 }
 function refreshMenuBtns() {
   var cb = document.getElementById('continueBtn');
-  if (cb) cb.style.opacity = hasSave() ? '1' : '0.45';
+  if (cb) { cb.style.opacity = hasSave() ? '1' : '0.45'; cb.disabled = !hasSave(); }
 }
 function showPanel(id) { hidePanels(); var el = document.getElementById(id); if (el) el.style.display = 'block'; }
 function hidePanels() { ['settingsPanel', 'creditsPanel'].forEach(function (id) { var el = document.getElementById(id); if (el) el.style.display = 'none'; }); }
@@ -362,12 +495,16 @@ function setPaused(v) {
   paused = v;
   var pm2 = document.getElementById('pauseMenu');
   if (pm2) pm2.style.display = v ? 'block' : 'none';
+  // Round 26 (worker A, item 1): the Save button reads '💾 Save' again
+  // each time the pause menu opens, so a '✓ Saved' from the last pause
+  // never leaks into the next one.
+  if (v) { var sb2 = document.getElementById('pauseSaveBtn'); if (sb2) sb2.textContent = '💾 Save'; }
   if (v) Object.keys(keys).forEach(function (k) { keys[k] = false; });
 }
 function togglePause() { setPaused(!paused); }
 document.getElementById('startBtn').addEventListener('click', function () { startAudio(); setScreen('menu'); });
 document.getElementById('newGameBtn').addEventListener('click', function () { startAudio(); newGame(); });
-document.getElementById('continueBtn').addEventListener('click', function () { startAudio(); if (hasSave()) { try { var sv = JSON.parse(localStorage.getItem('tc-save') || 'null'); if (sv) { missionIdx = sv.mission || 0; if (sv.money) setMoney(sv.money); updateObjective(); } } catch (e) {} setScreen('game'); } });
+document.getElementById('continueBtn').addEventListener('click', function () { startAudio(); if (hasSave()) { try { applySave(JSON.parse(localStorage.getItem('tc-save') || 'null')); } catch (e) {} setScreen('game'); } });
 document.getElementById('settingsBtn').addEventListener('click', function () { startAudio(); showPanel('settingsPanel'); });
 document.getElementById('creditsBtn').addEventListener('click', function () { startAudio(); showPanel('creditsPanel'); });
 document.getElementById('exitBtn').addEventListener('click', function () { startAudio(); setScreen('splash'); });
@@ -375,8 +512,8 @@ document.getElementById('settingsClose').addEventListener('click', function () {
 document.getElementById('creditsClose').addEventListener('click', function () { hidePanels(); });
 document.getElementById('settingsMuteBtn').addEventListener('click', function () { startAudio(); var mm = toggleMute(); document.getElementById('settingsMuteBtn').textContent = mm ? 'Sound: OFF' : 'Sound: ON'; });
 document.getElementById('resumeBtn').addEventListener('click', function () { setPaused(false); });
-document.getElementById('pauseSaveBtn').addEventListener('click', function () { saveGame(); var b2 = document.getElementById('pauseSaveBtn'); b2.textContent = '✓ Saved'; setTimeout(function () { b2.textContent = '💾 Save'; }, 1200); });
-document.getElementById('pauseQuitBtn').addEventListener('click', function () { setPaused(false); setScreen('menu'); });
+document.getElementById('pauseSaveBtn').addEventListener('click', function () { saveGame(); var b2 = document.getElementById('pauseSaveBtn'); b2.textContent = '✓ Saved'; });
+document.getElementById('pauseQuitBtn').addEventListener('click', function () { saveGame(); setPaused(false); setScreen('menu'); });
 document.getElementById('skipBtn').addEventListener('click', function () { setScreen('game'); });
 document.getElementById('dlgbox').addEventListener('click', function () { setScreen('game'); });
 document.getElementById('menuDlgBox').addEventListener('click', function () { setScreen('dialogue'); });

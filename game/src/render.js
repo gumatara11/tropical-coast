@@ -2,6 +2,123 @@
 // the player (on foot, car, bike, boat, jetski), missions, the HUD and
 // the camera director. One frame() call per animation frame.
 var clock = new THREE.Clock(); var t = 0;
+// Round 26 (item 6): jump — J key / ⬆ button (input.js, hud.js).
+// Space stays Attack, so jump is separate. Vertical velocity with
+// gravity; jumpH is the height above the ground, added to the on-foot
+// position each frame. Grounded only: no double jump.
+var jumpVy = 0, jumpH = 0;
+// Round 27 (P3 20): heli altitude above the ground (eases 0 -> 12 after
+// boarding, holds there while flying, resets on exit).
+var heliAlt = 0;
+function tryJump() {
+  if (screen !== 'game' && screen !== 'drive') return;
+  if (!onFoot || talking || cover) return;
+  if (typeof paused !== 'undefined' && paused) return;
+  if (typeof busted !== 'undefined' && busted) return;
+  if (jumpH > 0 || jumpVy !== 0) return;
+  jumpVy = 5.4;
+  jumpH = 0.001;
+}
+// Round 26 (item 7): bike riders — tryAttack (missions.js) only ever
+// targeted peds / chatters / beachgoers / officers, so a Vespa rider
+// could be shot at all day and nothing happened (Gito's report: the
+// rider just rode off). The wrapper below runs the original attack
+// first, then — only if the shot actually fired and hit no
+// pedestrian — applies the same range / arc / damage rules to the
+// riders on the moving bikes.
+var _riderTmp = null;
+function bikeRiders() {
+  var out = [];
+  bikeTraffic.forEach(function (bk) {
+    bk.children.forEach(function (ch) {
+      if (ch.userData && ch.userData.legL) out.push(ch);
+    });
+  });
+  return out;
+}
+function riderWorldPos(r) {
+  if (!_riderTmp) _riderTmp = new THREE.Vector3();
+  r.getWorldPosition(_riderTmp);
+  return _riderTmp;
+}
+function _npcHpSum() {
+  var s = 0;
+  peds.concat(chatters).concat(beachgoers).concat(officers).forEach(function (pd) { if (pd.userData.hp !== undefined) s += pd.userData.hp; });
+  return s;
+}
+var _tryAttackOrig = tryAttack;
+tryAttack = function () {
+  var atk0 = attackT;
+  var hp0 = _npcHpSum();
+  _tryAttackOrig();
+  if (attackT === atk0) return;
+  if (_npcHpSum() !== hp0) return;
+  var def = WEAPON_DEFS[weapon];
+  var fx = -Math.sin(heading), fz = -Math.cos(heading);
+  var best = null, bd = def.range;
+  bikeRiders().forEach(function (r) {
+    if (r.userData.downT > 0) return;
+    var wp = riderWorldPos(r);
+    var dx = wp.x - px, dz = wp.z - pz;
+    var d = Math.hypot(dx, dz);
+    if (d > def.range) return;
+    var dot = (dx * fx + dz * fz) / (d || 1);
+    if (def.gun ? dot < 0.94 : dot < 0.5) return;
+    if (d < bd) { bd = d; best = r; }
+  });
+  if (!best) return;
+  if (best.userData.hp === undefined) best.userData.hp = 100;
+  best.userData.hp -= def.dmg;
+  best.userData.hitT = 0.6;
+  best.userData.armL.rotation.x = -2.4; best.userData.armR.rotation.x = -2.4;
+  sparkT = 0.3;
+  if (best.userData.hp <= 0) { best.userData.downT = 8; best.userData.hp = 100; best.rotation.z = Math.PI / 2; }
+  raiseWanted(1);
+};
+// Round 26 (item 7): hit feedback polling — tryAttack (missions.js)
+// applies damage silently, so the frame loop watches every target's
+// hp: a drop since last frame means a hit landed, and shows the
+// hitmarker + damage number (hud.js). A fresh downT means the target
+// fell: DOWN tag with the finishing damage. Riders get their
+// down-timer counted here too — they are not in the NPC down-timer
+// loop, so without this a shot-down rider would lie tipped over
+// forever (and the bike would keep driving under him).
+var _lastHp = new Map();
+function watchHits(dt) {
+  function check(pd) {
+    var u = pd.userData;
+    if (u.downT > 0) {
+      if (!u._downSeen) {
+        u._downSeen = true;
+        if (typeof showHitmarker === 'function') {
+          var prev = _lastHp.get(pd);
+          showHitmarker(prev !== undefined ? prev : 0, true);
+        }
+      }
+      return;
+    }
+    if (u._downSeen) { u._downSeen = false; _lastHp.set(pd, u.hp === undefined ? 100 : u.hp); return; }
+    if (u.hp !== undefined) {
+      var prev2 = _lastHp.get(pd);
+      if (prev2 === undefined) prev2 = 100;
+      if (u.hp < prev2 && typeof showHitmarker === 'function') showHitmarker(prev2 - u.hp, false);
+      _lastHp.set(pd, u.hp);
+    }
+  }
+  peds.forEach(check); chatters.forEach(check); beachgoers.forEach(check); officers.forEach(check);
+  bikeRiders().forEach(function (r) {
+    var u = r.userData;
+    if (u.downT > 0) {
+      u.downT -= dt;
+      if (u.downT <= 0) {
+        r.rotation.z = 0; u.hp = 100;
+        var sh = (r.parent && r.parent.userData.type === 'sport') ? -1.0 : -0.6;
+        u.armL.rotation.x = sh; u.armR.rotation.x = sh;
+      }
+    }
+    check(r);
+  });
+}
 // Cover staging: every cover shot pins the player, the car and the camera
 // subject to fixed positions so the frame is repeatable. Gameplay is
 // untouched — this only runs with ?cover=1.
@@ -202,6 +319,34 @@ function chaseOnFoot(pu, tx, tz, spd, dt) {
   else if (walkable(pu.position.x, nz)) pu.position.z = nz;
   pu.rotation.y = Math.atan2(-dx / d, -dz / d);
 }
+// Round 26 (item 3): the police response scales with the stars, so one
+// shot does not bring the whole department — 1 star is 2 cars + 2 foot
+// officers, each extra star adds one car and one officer, and the heli
+// only joins at 3 stars. At 5 stars this is still the old full
+// response: 6 cars + 6 officers + heli = 13. Top-level so hud.js can
+// read the same table for the dispatch panel — the panel never
+// disagrees with what is actually chasing.
+function policeResponse(w) {
+  if (w <= 0) return { cars: 0, officers: 0, heli: false, total: 0 };
+  var n = Math.min(6, w + 1);
+  return { cars: n, officers: n, heli: w >= 3, total: n * 2 + (w >= 3 ? 1 : 0) };
+}
+// Round 26 (worker A, patrol exception; coordinator: knockback without
+// stars): a police car still on patrol — below its chase star in
+// policeResponse, so it is lane traffic, not a pursuer — never raises
+// wanted on contact, but it still knocks Gito clear (thud + brake),
+// so it does not ghost through the player. The Round 25 lead-car hold
+// (3.5 m) fixed only the lead unit; police2-6 patrolling the coast-road
+// lanes could still run Gito down and raise wanted out of nowhere
+// (probe: police2 contact at 2.35 m, wanted 0 -> 1, no other car within
+// 18 m). A car that IS chasing (index < policeResponse cars) still hits
+// AND raises wanted, as before.
+function policePatrolling(o) {
+  var units = [police, police2, police3, police4, police5, police6];
+  var idx = units.indexOf(o);
+  if (idx < 0) return false;
+  return idx >= policeResponse(wanted).cars;
+}
 // Round 22: fleeing NPCs — run away from the player at ~2x walk speed
 // with a fast leg cycle, arms raised, head bowed; walkable-checked per
 // step so they never clip through buildings. Runs after the normal NPC
@@ -245,7 +390,9 @@ function frame() {
   // Round 25: pause — freeze the sim (Esc/P or the ☰ button), keep
   // rendering the frozen frame so the pause menu sits over the game.
   // The clock delta is already consumed, so resuming does not jump.
-  if (typeof paused !== 'undefined' && paused) { renderer.render(scene, cam); return; }
+  // Round 26 (item 4): BUSTED freezes the sim the same way until the
+  // player respawns or quits to the menu (hud.js clears `busted`).
+  if ((typeof paused !== 'undefined' && paused) || (typeof busted !== 'undefined' && busted)) { renderer.render(scene, cam); return; }
   t += dt;
   var playing = (screen === 'game' || screen === 'drive');
   // Golden-hour sun rig follows the player so the long shadows stay in
@@ -270,14 +417,14 @@ function frame() {
     var fl2 = Math.sin(t * 9 + i * 2) * 0.5;
     bd.userData.wl.rotation.z = fl2; bd.userData.wr.rotation.z = -fl2;
   });
-  heli.visible = !cover || qs.get('spot') === 'chase';
+  heli.visible = cover ? qs.get('spot') === 'chase' : wanted >= 3;
   glints.forEach(function (g2, i) { g2.material.opacity = 0.2 + 0.25 * Math.abs(Math.sin(t * 1.5 + i * 1.3)); });
   buoys.forEach(function (b3, i) { b3.position.y = 0.2 + Math.sin(t * 1.5 + i) * 0.15; });
   wheel.rotation.z += dt * 0.15;
   heli.userData.rotor.rotation.y += dt * 20;
   heli.position.y = 26 + Math.sin(t * 0.8) * 0.8;
-  if (wanted > 0 && !cover) { heli.position.x += (px - heli.position.x) * dt * 0.5; heli.position.z += ((pz - 15) - heli.position.z) * dt * 0.5; }
-  if (heli.userData.spot) heli.userData.spot.material.opacity = wanted > 0 ? 0.4 : 0.12;
+  if (wanted >= 3 && !cover) { heli.position.x += (px - heli.position.x) * dt * 0.5; heli.position.z += ((pz - 15) - heli.position.z) * dt * 0.5; }
+  if (heli.userData.spot) heli.userData.spot.material.opacity = wanted >= 3 ? 0.4 : 0.12;
   motorboats.forEach(function (b) { b.position.y = b.userData.baseY + Math.sin(t * 0.9 + b.userData.ph) * 0.05; b.rotation.x = Math.sin(t * 0.7 + b.userData.ph) * 0.02; b.rotation.z = Math.cos(t * 0.6 + b.userData.ph) * 0.02; });
   jetskis.forEach(function (j) { j.position.y = j.userData.baseY + Math.sin(t * 1.1 + j.userData.ph) * 0.06; j.rotation.x = Math.sin(t * 0.9 + j.userData.ph) * 0.03; });
   tourHeli.userData.rotor.rotation.y += dt * 25;
@@ -378,14 +525,16 @@ function frame() {
   // Round 23: patrol drives +z, so the unit faces +z — without this the
   // car kept whatever yaw the last chase left (usually 0: backwards).
   else if (!police2.userData.adopted) { police2.rotation.y = Math.PI; police2.position.z += dt * 5; if (police2.position.z > 210) police2.position.z = -210; }
-  // Round 24 (bug #5): wanted > 0 means EVERY police car hunts — the
-  // old staged thresholds (3/4/5 stars) left cars patrolling past a
-  // foot officer's post mid-chase, which read as a parked police car
-  // with an officer standing beside it. All six chase from 1 star.
-  [[police3, 6, -12, 1], [police4, -6, -16, 1], [police5, 2, -20, 1], [police6, -2, -24, 1]].forEach(function (u) {
+  // Round 26 (item 3): staged response — the 3rd car joins at 2 stars,
+  // the 4th at 3, the 5th at 4, the 6th at 5 (policeResponse). Below its
+  // star a car patrols instead of chasing. Officers stage identically
+  // (chaseN below), so a patrolling car never sits beside a chasing
+  // officer — the pair stays consistent at every level, which is what
+  // the Round 24 all-chase rule was protecting.
+  [[police3, 6, -12, 2], [police4, -6, -16, 3], [police5, 2, -20, 4], [police6, -2, -24, 5]].forEach(function (u) {
     var pu = u[0];
     if (pu.userData.adopted) return;
-    if (wanted > 0 && !onFoot) {
+    if (wanted >= u[3] && !onFoot) {
       pu.position.x += ((px + u[1]) - pu.position.x) * dt * 2.0;
       pu.position.z += ((pz + u[2]) - pu.position.z) * dt * 2.0;
       pu.rotation.y = heading;
@@ -434,7 +583,20 @@ function frame() {
     taxi.position.set(-2, 0, pz + 170); taxi.rotation.y = heading;
   }
   // Police never enter the water: clamp every unit to the land band.
-  [police, police2, police3, police4, police5, police6].forEach(function (pu) { if (pu.position.x > 12) pu.position.x = 12; });
+  // Round 26: a car the clamp pinned to x=12 must not patrol that line
+  // forever — x=12 IS the promenade, 2 m from the spawn (10,12) and
+  // past the billboard viewpoint, so a chase east of x=6 used to leave
+  // up to 4 cruisers driving the promenade past Gito (probe: after a
+  // 5 s chase at px=20, police/police2/police3/police4 all sat at x=12,
+  // still there 10 s after the heat died — police4 at (12,101) in the
+  // billboard shot). A patrolling car (police2-6) eases back to its
+  // home lane instead; the lead car keeps the plain clamp — its x is
+  // steered by the shadow-spot lerp, so it follows the player west
+  // on its own.
+  [police, police2, police3, police4, police5, police6].forEach(function (pu, i) {
+    if (pu.position.x > 12) pu.position.x = 12;
+    if (i > 0 && policePatrolling(pu) && !pu.userData.adopted) { var lx = [-3.5, -3.5, 3.5, -3.5, 3.5][i - 1]; pu.position.x += (lx - pu.position.x) * dt * 0.5; }
+  });
   // Pedestrians walk their sidewalk; chatters nod and gesture.
   // Round 19: a downed NPC lies still until downT runs out, and a hit
   // NPC throws its arms up for the length of hitT instead of walking.
@@ -466,6 +628,9 @@ function frame() {
       if (pd.userData.hitT > 0) pd.userData.hitT -= dt;
     });
   });
+  // Round 26 (item 7): hit feedback — watch hp drops / fresh falls
+  // (see watchHits above) and flash the hitmarker + damage number.
+  watchHits(dt);
   // Round 22: gunshot flee — after the normal NPC loops, so the run
   // pose + escape movement win while fleeT runs.
   updateFlee(peds, dt); updateFlee(chatters, dt); updateFlee(beachgoers, dt);
@@ -475,9 +640,9 @@ function frame() {
   // 8.5 m/s run, so Gito can still escape. When the heat dies they walk
   // back to their post and resume patrol. Contact is just a near-miss
   // (no damage from touching an officer) — only their GUNFIRE hurts.
-  // Round 24 (bug #5): wanted > 0 means ALL SIX chase. The old staged
-  // chaseN (1 star: 2 officers) left the rest patrolling at their
-  // posts — one standing idle beside a police car mid-chase.
+  // Round 26 (item 3): staged chase — 1 star sends 2 officers, each
+  // extra star one more, all six only at 5 (policeResponse). The cars
+  // stage identically, so the car/officer pair stays consistent.
   // Round 24 (bug #3): from 2 stars (GTA-style: 1 star is chase-only,
   // guns come out at 2) a chasing officer SHOOTS — visible muzzle
   // flash + tracer + gunshot sound, 4 damage a hit through the normal
@@ -490,7 +655,7 @@ function frame() {
   // below re-sets rotation with the PERSON formula (front = +z local):
   // rotation.y = atan2(dx, dz) toward the target.
   (function () {
-    var chaseN = wanted >= 1 ? 6 : 0;
+    var chaseN = policeResponse(wanted).officers;
     officers.forEach(function (of, oi) {
       var u = of.userData;
       if (u.shotCd === undefined) { u.shotCd = oi * 0.37; u.shots = 0; u.shootT = 0; }
@@ -661,7 +826,12 @@ function frame() {
           // Round 22: a traffic hit knocks Gito clear, plays the thud,
           // brakes the car and draws the police — but it NEVER costs
           // health or armour anymore.
-          sparkT = 0.5; panicT = 1.2; raiseWanted(1); playThud();
+          // Round 26 (coordinator): a patrolling police car still
+          // knocks Gito clear, but raises NO wanted — a cruiser
+          // ghosting through the player with no reaction looked
+          // broken; the brief only forbids raising wanted.
+          sparkT = 0.5; panicT = 1.2; playThud();
+          if (!policePatrolling(hitCar)) raiseWanted(1);
           var kdx = px - hitCar.position.x, kdz = pz - hitCar.position.z;
           var kl = Math.hypot(kdx, kdz) || 1;
           var kpx = px + (kdx / kl) * 1.6, kpz = pz + (kdz / kl) * 1.6;
@@ -671,7 +841,14 @@ function frame() {
         }
       }
       pz = Math.max(-205, Math.min(205, pz));
-      gito.position.set(px, groundY(px, pz), pz);
+      // Round 26 (item 6): jump physics — velocity + gravity while
+      // airborne; jumpH rides on top of the ground height below.
+      if (jumpH > 0 || jumpVy !== 0) {
+        jumpVy -= 16 * dt;
+        jumpH += jumpVy * dt;
+        if (jumpH <= 0) { jumpH = 0; jumpVy = 0; }
+      }
+      gito.position.set(px, groundY(px, pz) + jumpH, pz);
       gito.rotation.y = heading + Math.PI;
       // A living idle, not a statue: one foot slightly forward, one knee
       // bent, arms hanging asymmetrically, head tilted a touch, soft
@@ -731,18 +908,11 @@ function frame() {
       }
       // "E Enter Vehicle" prompt + spinning arrow above the nearest
       // rideable vehicle.
-      var cd = Math.hypot(carX - px, carZ - pz);
-      var nearRide = cd < 4 ? { x: carX, z: carZ } : null;
-      // Round 22: the parked cars and the inactive coupe count too, so
-      // the MASUK pill + arrow show for every car Gito can actually take.
-      if (!nearRide && carMesh !== player && Math.hypot(player.position.x - px, player.position.z - pz) < 4) nearRide = { x: player.position.x, z: player.position.z };
-      if (!nearRide && carMesh !== parked1 && Math.hypot(parked1.position.x - px, parked1.position.z - pz) < 4) nearRide = { x: parked1.position.x, z: parked1.position.z };
-      if (!nearRide && carMesh !== parked2 && Math.hypot(parked2.position.x - px, parked2.position.z - pz) < 4) nearRide = { x: parked2.position.x, z: parked2.position.z };
-      // Round 25 (bug #4): the MASUK pill + arrow show for an adoptable
-      // car too, so the player can see it is enterable before pressing E.
-      if (!nearRide) { var ad = nearestAdoptable(4); if (ad) nearRide = { x: ad.position.x, z: ad.position.z }; }
-      if (!nearRide) { var wv2 = nearestVeh(motorboats.concat(jetskis), 6); if (wv2) nearRide = { x: wv2.position.x, z: wv2.position.z }; }
-      if (!nearRide) { var bk2 = nearestVeh(bikes, 4); if (bk2) nearRide = { x: bk2.position.x, z: bk2.position.z }; }
+      // Round 26 (item 8): the pill + arrow follow nearestRideable
+      // (missions.js) — the same nearest pick tryEnter uses — so they
+      // never point at a farther police car while a bike is closer.
+      var nr = nearestRideable();
+      var nearRide = nr ? { x: nr.x, z: nr.z } : null;
       if (enterEl) { enterEl.style.display = (nearRide && !talking) ? 'block' : 'none'; if (nearRide && !talking) enterEl.textContent = 'MASUK'; }
       enterArrow.visible = !!nearRide;
       if (nearRide) { enterArrow.position.set(nearRide.x, 2.9 + Math.sin(t * 3) * 0.25, nearRide.z); enterArrow.rotation.y = t * 1.5; }
@@ -803,7 +973,12 @@ function frame() {
     var nkx = rideObj.position.x - Math.sin(rideHeading) * rideSpeed * dt;
     var nkz = rideObj.position.z - Math.cos(rideHeading) * rideSpeed * dt;
     if (nkz > 205) nkz = -205; if (nkz < -205) nkz = 205;
-    if (walkable(nkx, nkz)) { rideObj.position.x = nkx; rideObj.position.z = nkz; } else rideSpeed = 0;
+    // Round 27 (P3 21): same wall-slide as the car — a bike nose-first
+    // into a building used to dead-stop with gas held.
+    if (walkable(nkx, nkz)) { rideObj.position.x = nkx; rideObj.position.z = nkz; }
+    else if (walkable(nkx, rideObj.position.z)) { rideObj.position.x = nkx; }
+    else if (walkable(rideObj.position.x, nkz)) { rideObj.position.z = nkz; }
+    else rideSpeed = 0;
     rideObj.rotation.y = rideHeading;
     // A turns left now, so the lean follows +steer. (Gito keeps -steer:
     // he faces +z locally, so his lean sign is the opposite of the
@@ -824,6 +999,36 @@ function frame() {
       if (o !== carMesh && Math.hypot(o.position.x - px, o.position.z - pz) < 3.0) hitB = true;
     });
     if (hitB && sparkT <= 0 && t > spawnSafeT) { sparkT = 0.5; panicT = 1.2; raiseWanted(1); playThud(); }
+    if (enterEl) { if (!cover) { enterEl.style.display = 'block'; enterEl.textContent = 'KELUAR'; } else enterEl.style.display = 'none'; }
+    if (talkEl) talkEl.style.display = 'none';
+  } else if (rideMode === 'heli') {
+    // Round 27 (P3 20): heli flight — W/S throttle, A/D steer, no
+    // walkable check (it flies over land and sea). Altitude eases 0 ->
+    // 12 after boarding and holds there; the rotor spins up with speed.
+    // Getting out drops Gito on the ground below (tryEnter) — no fall
+    // damage in this game.
+    if (keys.KeyW || keys.ArrowUp) rideSpeed += 14 * dt;
+    if (keys.KeyS || keys.ArrowDown) rideSpeed -= 16 * dt;
+    if (rideSpeed > 0 && !(keys.KeyW || keys.ArrowUp) && !cover) rideSpeed -= 6 * dt;
+    if (rideSpeed < 0) rideSpeed = 0; if (rideSpeed > 30) rideSpeed = 30;
+    if (keys.KeyA || keys.ArrowLeft) steer = Math.min(steer + dt * 2, 0.6);
+    else if (keys.KeyD || keys.ArrowRight) steer = Math.max(steer - dt * 2, -0.6);
+    else steer *= (1 - dt * 4);
+    rideHeading += steer * dt * (rideSpeed / (4 + Math.abs(rideSpeed) * 0.15));
+    var nhx = rideObj.position.x - Math.sin(rideHeading) * rideSpeed * dt;
+    var nhz = rideObj.position.z - Math.cos(rideHeading) * rideSpeed * dt;
+    if (nhx < -160) nhx = -160; if (nhx > 205) nhx = 205;
+    if (nhz > 205) nhz = -205; if (nhz < -205) nhz = 205;
+    heliAlt += (12 - heliAlt) * (1 - Math.exp(-1.2 * dt));
+    rideObj.position.x = nhx; rideObj.position.z = nhz;
+    rideObj.position.y = Math.max(0, groundY(nhx, nhz)) + heliAlt;
+    rideObj.rotation.y = rideHeading;
+    if (rideObj.userData.rotor) rideObj.userData.rotor.rotation.y += dt * (8 + rideSpeed);
+    if (rideObj.userData.tailRotor) rideObj.userData.tailRotor.rotation.x += dt * 30;
+    px = nhx; pz = nhz; heading = rideHeading;
+    gito.visible = true;
+    stageSeat(rideObj, -0.5, 0.2, rideObj.position.y + 0.05, 0.1, { hip: -1.35, knee: 1.5, shoulder: -0.8, elbow: -0.4, head: 0, spread: 0.12 });
+    kmh = Math.round(rideSpeed * 3.6);
     if (enterEl) { if (!cover) { enterEl.style.display = 'block'; enterEl.textContent = 'KELUAR'; } else enterEl.style.display = 'none'; }
     if (talkEl) talkEl.style.display = 'none';
   } else {
@@ -848,11 +1053,26 @@ function frame() {
     var ncx = carX - Math.sin(carHeading) * speed * dt;
     var ncz = carZ - Math.cos(carHeading) * speed * dt;
     if (ncz > 205) ncz = -205; if (ncz < -205) ncz = 205;
-    if (walkable(ncx, ncz)) { carX = ncx; carZ = ncz; } else speed = 0;
+    // Round 27 (P3 21): wall-slide — the old code zeroed speed whenever
+    // the nose touched anything non-walkable, so holding gas against a
+    // building face or the sea edge left the car dead-stuck (gas held,
+    // car not moving at all). Slide along the wall instead: full step,
+    // else x-only, else z-only; speed only zeroes when fully boxed in.
+    if (walkable(ncx, ncz)) { carX = ncx; carZ = ncz; }
+    else if (walkable(ncx, carZ)) { carX = ncx; }
+    else if (walkable(carX, ncz)) { carZ = ncz; }
+    else speed = 0;
     px = carX; pz = carZ; heading = carHeading;
     carMesh.position.set(carX, groundY(carX, carZ), carZ);
     carMesh.rotation.y = carHeading;
     if (carMesh.userData.frontWheels) carMesh.userData.frontWheels.forEach(function (wg) { wg.rotation.y = steer * 0.5; });
+    // Round 26 (worker A, item 2): Gito drives VISIBLY — seated in the
+    // driver's seat (left seat, hips inside the body, head above the
+    // roofline) with hands forward to the wheel, so the chase camera
+    // sees the driver instead of an empty car. Same stageSeat pose
+    // language as the boat/bike riders; no limb child is touched.
+    gito.visible = true;
+    stageSeat(carMesh, -0.5, 0.35, carMesh.position.y + 1.10, 0.15, { hip: -1.35, knee: 1.5, shoulder: -0.9, elbow: -0.5, head: 0, spread: 0.12 });
     kmh = Math.round(speed * 3.6);
     if (kmh > 130) raiseWanted(1); // speeding draws the police
     // Collision with traffic / police (bike traffic included).
@@ -873,7 +1093,10 @@ function frame() {
       var cm = curMission();
       if (cm) {
         if (missionStage === 'do' && cm.check === 'car' && !onFoot && rideMode === 'car') completeMission();
-        else if (missionStage === 'do' && cm.check && cm.check.x !== undefined && Math.hypot(cm.check.x - px, cm.check.z - pz) < cm.check.r) completeMission();
+        // Round 27 (A): a check can demand a vehicle — 'heli' / 'boat' /
+        // 'car' — so the Island Tour must be flown and the Harbor Run
+        // sailed; walking to the spot does not count.
+        else if (missionStage === 'do' && cm.check && cm.check.x !== undefined && (!cm.check.vehicle || rideMode === cm.check.vehicle) && Math.hypot(cm.check.x - px, cm.check.z - pz) < cm.check.r) completeMission();
       }
     }
     var cmB = curMission();
@@ -887,7 +1110,13 @@ function frame() {
     } else beacon.visible = false;
     if (playing && !cover && wantedT > 0) { wantedT -= dt; if (wantedT <= 0) wanted = 0; }
     // Health regens slowly once the heat is off and no recent hit.
-    if (playing && !cover && wanted === 0 && t - lastHitT > 5 && health < 100) health = Math.min(100, health + dt * 2);
+    // Round 26 (item 4): never regen while BUSTED — a dead player
+    // must stay dead until respawn, not climb back from 0.
+    if (playing && !cover && !busted && wanted === 0 && t - lastHitT > 5 && health < 100) health = Math.min(100, health + dt * 2);
+    // Round 26 (item 4): health 0 means BUSTED — freeze the sim and
+    // show the game-over overlay (hud.js). Runs the same frame the
+    // killing shot lands; damagePlayer is the only health drain.
+    if (playing && !cover && health <= 0 && !busted) { busted = true; showBusted(); }
     if (bannerT > 0) { bannerT -= dt; if (bannerT <= 0 && bannerEl) bannerEl.style.display = 'none'; }
     if (objectiveEl) objectiveEl.style.display = cover ? 'none' : 'block';
     if (sparkT > 0) {
@@ -1168,7 +1397,17 @@ function directCamera(dt) {
     // smoothly instead of whipping the view. The lateral offset is
     // heading-relative now, so it stays over the same shoulder when
     // Gito turns around instead of swinging to the other side.
-    var camDist = onFoot ? 2.4 : 5.6, camH = onFoot ? 1.9 : 2.8, camLat = onFoot ? 0.8 : 1.4;
+    // Round 26 (item 11): the drive camera sat 2.8 m high / 5.6 m back,
+    // glued to the roofline, so a palm trunk between camera and car
+    // filled the middle of the screen. Higher (3.7) + farther back
+    // (7.2) looks down over the roof and past the trunks; the on-foot
+    // camera is untouched, and the driver pose (worker A, item 2) is a
+    // separate change — this line only moves the camera slot.
+    var camDist = onFoot ? 2.4 : 7.2, camH = onFoot ? 1.9 : 3.7, camLat = onFoot ? 0.8 : 1.4;
+    // Round 27 (P3 20): the heli flies at ~12 m — the camera slot and
+    // look target rise with it, or the camera would sit on the ground
+    // looking up at an empty sky while the heli flies overhead.
+    var camBaseY = (!onFoot && rideMode === 'heli' && rideObj) ? rideObj.position.y : 0;
     // On boat/jetski/bike the camera sits dead behind the (small) vehicle
     // and looks along the heading, so it stays centred at any heading.
     if (!onFoot && rideMode !== 'car') camLat = 0;
@@ -1179,7 +1418,7 @@ function directCamera(dt) {
     camHead += chd * (1 - Math.exp(-6 * dt));
     var chx = Math.sin(camHead), chz = Math.cos(camHead);
     var cx = px + chx * camDist, cz = pz + chz * camDist; // behind = (-movement) = (+sin h, +cos h)
-    var tx = cx + chz * camLat + (sparkT > 0 ? (Math.random() - 0.5) * 0.3 : 0), ty = camH, tz = cz - chx * camLat;
+    var tx = cx + chz * camLat + (sparkT > 0 ? (Math.random() - 0.5) * 0.3 : 0), ty = camH + camBaseY, tz = cz - chx * camLat;
     if (cover) cam.position.set(tx, ty, tz);
     else {
       // Round 18: in real gameplay the camera eases toward its slot
@@ -1204,7 +1443,7 @@ function directCamera(dt) {
       if (cover) cam.lookAt(px, 1.6, pz - 2);
       else cam.lookAt(px - chx * 2, 1.6, pz - chz * 2);
     }
-    else cam.lookAt(px - chx * 10, 1.5, pz - chz * 10);
+    else cam.lookAt(px - chx * 10, 1.5 + camBaseY, pz - chz * 10);
   }
   // The enter arrow's glow cone looms huge when the follow camera is close
   // behind the player — scale the arrow down at close range so it reads as

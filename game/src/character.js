@@ -356,10 +356,18 @@ var woman = new THREE.Group();
   var wHairM = new THREE.MeshLambertMaterial({ color: 0x3a2a1a });
   var head = makeHead(wSkin, wHairM, { eyes: true, headGlasses: true, earrings: true, smile: true });
   head.scale.set(0.95, 0.95, 0.95);
+  // Round 27 (Luna hair): the old back mass was a wide flat slab that
+  // covered the head and upper back from behind — narrower and deeper
+  // now, hugging the skull, with a thinner ponytail and two side locks
+  // hanging in front of the shoulders, so the hair reads as hair.
   var wBack = new THREE.Mesh(new THREE.SphereGeometry(0.12, 14, 12), wHairM);
-  wBack.scale.set(1.15, 1.45, 0.85); wBack.position.set(0, -0.08, -0.13); head.add(wBack);
-  var wPony = new THREE.Mesh(new THREE.CapsuleGeometry(0.10, 0.5, 4, 12), wHairM);
-  wPony.position.set(0.08, -0.18, -0.24); wPony.rotation.x = 0.25; head.add(wPony);
+  wBack.scale.set(0.95, 1.25, 1.0); wBack.position.set(0, -0.06, -0.10); head.add(wBack);
+  var wPony = new THREE.Mesh(new THREE.CapsuleGeometry(0.085, 0.55, 4, 12), wHairM);
+  wPony.position.set(0.06, -0.22, -0.26); wPony.rotation.x = 0.25; head.add(wPony);
+  [-0.10, 0.10].forEach(function (lx) {
+    var wLock = new THREE.Mesh(new THREE.CapsuleGeometry(0.035, 0.22, 4, 8), wHairM);
+    wLock.position.set(lx, -0.24, 0.06); wLock.rotation.x = 0.08; head.add(wLock);
+  });
   woman.add(head);
   var wHipsPts = [];
   [[0.168, 0.11], [0.178, 0.05], [0.186, -0.05], [0.18, -0.11], [0.172, -0.17]].forEach(function (p) { wHipsPts.push(new THREE.Vector2(p[0], p[1])); });
@@ -411,7 +419,13 @@ var woman = new THREE.Group();
   wTraps.scale.set(1.9, 0.45, 0.85); wTraps.position.y = 1.47; woman.add(wTraps);
   legL.rotation.x = -0.04; legR.rotation.x = 0.02;
   legR.children[1].rotation.x = 0.07;
-  armL.rotation.x = -0.04; armR.rotation.x = 0.03;
+  // Round 27 (Luna arms): her left arm hung at her side with the
+  // forearm bent forward, so from the front it vanished behind the
+  // torso — rotate the whole arm group so the bent forearm swings
+  // across her chest, like a relaxed one-arm-across pose. Group
+  // rotations only; the elbow child is untouched.
+  armL.rotation.x = -0.25; armL.rotation.y = 0.85; armL.rotation.z = -0.10;
+  armR.rotation.x = 0.03; armR.rotation.y = -0.15;
   head.rotation.z = 0.04;
   woman.userData = { armL: armL, armR: armR, legL: legL, legR: legR, head: head };
   woman.traverse(function (o) { if (o.isMesh) o.castShadow = true; });

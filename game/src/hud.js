@@ -46,34 +46,49 @@ function drawGauge(kmh) {
 // yellow player dot, gold mission dot, blue police dots, white traffic dots.
 var mm = document.getElementById('minimap');
 var mtx = mm.getContext('2d');
-function drawMap() {
+// Round 26 (item 6): the map painter takes its context, so the
+// fullscreen map draws the exact same picture at 3x — one painter,
+// two canvases, never two diverging maps. drawMap keeps the HUD
+// minimap; drawBigMap (below) feeds the fullscreen overlay.
+function paintMap(c) {
   // Round 24 (bug #6): the minimap used to show only x -37..+37, so
   // Avenue 2, Avenue 3 and the whole west grid were invisible — the
   // map LOOKED one-directional even on the HUD. Full-grid scale now:
   // mx = 8 + (x+164)*0.8 (x -164..30), my = 8 + (z+205)*0.38.
-  mtx.clearRect(0, 0, 170, 170);
-  mtx.fillStyle = '#2a8a4a'; mtx.fillRect(0, 0, 170, 170);
-  mtx.fillStyle = '#4a4a5a'; mtx.fillRect(0, 0, 133, 170);
-  mtx.fillStyle = '#1a7ac8'; mtx.fillRect(163, 0, 7, 170);
-  mtx.fillStyle = '#e8cf9a'; mtx.fillRect(150, 0, 13, 170);
-  mtx.fillStyle = '#3a3a4a';
-  mtx.fillRect(133, 0, 13, 170);
-  mtx.fillRect(110, 0, 8, 170);
-  mtx.fillRect(71, 0, 8, 170);
-  mtx.fillRect(33, 0, 8, 170);
-  [-163, -61, 41, 143].forEach(function (cz) { mtx.fillRect(8, 8 + (cz + 205) * 0.38 - 2, 138, 4); });
-  mtx.fillStyle = '#ffd23f';
-  for (var i = 0; i < 8; i++) mtx.fillRect(139, 10 + i * 20, 2, 10);
+  c.clearRect(0, 0, 170, 170);
+  c.fillStyle = '#2a8a4a'; c.fillRect(0, 0, 170, 170);
+  c.fillStyle = '#4a4a5a'; c.fillRect(0, 0, 133, 170);
+  c.fillStyle = '#1a7ac8'; c.fillRect(163, 0, 7, 170);
+  c.fillStyle = '#e8cf9a'; c.fillRect(150, 0, 13, 170);
+  c.fillStyle = '#3a3a4a';
+  c.fillRect(133, 0, 13, 170);
+  c.fillRect(110, 0, 8, 170);
+  c.fillRect(71, 0, 8, 170);
+  c.fillRect(33, 0, 8, 170);
+  [-163, -61, 41, 143].forEach(function (cz) { c.fillRect(8, 8 + (cz + 205) * 0.38 - 2, 138, 4); });
+  c.fillStyle = '#ffd23f';
+  for (var i = 0; i < 8; i++) c.fillRect(139, 10 + i * 20, 2, 10);
   function dot(x, z, col, r) {
     var mx = 8 + (x + 164) * 0.8, my = 8 + (z + 205) * 0.38;
     if (mx < 4 || mx > 166 || my < 4 || my > 166) return;
-    mtx.fillStyle = col; mtx.beginPath(); mtx.arc(mx, my, r || 4, 0, 6.29); mtx.fill();
+    c.fillStyle = col; c.beginPath(); c.arc(mx, my, r || 4, 0, 6.29); c.fill();
   }
+  // Round 27 (Minimap): the mission dot was the same gold and size as
+  // the player dot — unreadable. Mission now: white ring + gold core,
+  // bigger; the player dot gains a dark outline so it never melts into
+  // the gold dashes.
+  function ringDot(x, z, col, r) {
+    var mx = 8 + (x + 164) * 0.8, my = 8 + (z + 205) * 0.38;
+    if (mx < 4 || mx > 166 || my < 4 || my > 166) return;
+    c.fillStyle = '#ffffff'; c.beginPath(); c.arc(mx, my, r + 2.5, 0, 6.29); c.fill();
+    c.fillStyle = col; c.beginPath(); c.arc(mx, my, r, 0, 6.29); c.fill();
+  }
+  dot(px, pz, '#1a1a1a', 6.5);
   dot(px, pz, '#ffd21a', 5);
   var cm4 = curMission();
   if (cm4 && !cover) {
-    if (missionStage === 'talk') dot(cm4.giverObj.position.x, cm4.giverObj.position.z, '#ffd23f', 5);
-    else if (cm4.check && cm4.check.x !== undefined) dot(cm4.check.x, cm4.check.z, '#ffd23f', 5);
+    if (missionStage === 'talk') ringDot(cm4.giverObj.position.x, cm4.giverObj.position.z, '#ffd23f', 5.5);
+    else if (cm4.check && cm4.check.x !== undefined) ringDot(cm4.check.x, cm4.check.z, '#ffd23f', 5.5);
   }
   dot(police.position.x, police.position.z, '#2a6aff', 4);
   dot(police2.position.x, police2.position.z, '#2a6aff', 4);
@@ -88,6 +103,7 @@ function drawMap() {
   crossTraffic.forEach(function (t) { dot(t.position.x, t.position.z, '#ffffff', 3); });
   peds.forEach(function (pd) { dot(pd.position.x, pd.position.z, '#ff8ac8', 2); });
 }
+function drawMap() { paintMap(mtx); }
 
 var missionPanelEl = document.getElementById('missionPanel');
 var districtEl = document.getElementById('district');
@@ -179,13 +195,13 @@ function updateHudExtra() {
   if (districtEl) { var da = districtAt(px, pz), sa = streetAt(px, pz); districtEl.textContent = (sa && sa !== da) ? sa + ' · ' + da : da; }
   if (clockEl) { var cmin = 16 * 60 + Math.floor(t); if (cmin !== lastClockMin) { lastClockMin = cmin; var ch = Math.floor(cmin / 60) % 24, cm2 = cmin % 60; clockEl.textContent = (ch < 10 ? '0' : '') + ch + ':' + (cm2 < 10 ? '0' : '') + cm2; } }
   if (starsEl) { var st = ''; for (var si = 0; si < 5; si++) st += si < wanted ? '★' : '<span class="dim">★</span>'; if (st !== lastStarsHtml) { starsEl.innerHTML = st; lastStarsHtml = st; } }
-  if (carInfoEl) { var cn = carMesh.userData.driveName || (carMesh === parked1 ? 'CRIMSON GT' : (carMesh === parked2 ? 'AZURE GT' : 'COAST GT')); carInfoEl.textContent = cn + ' · CONDITION ' + carCond + '%'; }
+  if (carInfoEl) { var cn = carMesh.userData.driveName || (carMesh === parked1 ? 'CRIMSON GT' : (carMesh === parked2 ? 'AZURE GT' : 'COAST GT')); carInfoEl.textContent = cn + ' · CONDITION ' + carCond + '%'; carInfoEl.style.display = onFoot ? 'none' : 'block'; }
   if (radioEl) radioEl.textContent = '♪ RADIO TROPICAL 98.6 — Island Pop';
   if (healthBarEl) healthBarEl.style.width = health + '%';
   if (armourBarEl) armourBarEl.style.width = (armour / 50 * 100) + '%';
   if (healthNumEl) healthNumEl.textContent = Math.round(health);
   if (armourNumEl) armourNumEl.textContent = Math.round(armour);
-  if (gunEl) { var wpn19 = WEAPON_DEFS[weapon]; var wa19 = weaponAmmo(); var gh = wpn19.gun ? '🔫 ' + wpn19.name + '<br>' + wa19.a + ' / ' + wa19.r : (weapon === 6 ? '🏏 BAT' : '👊 FIST') + '<br>∞'; if (gh !== lastGunHtml) { gunEl.innerHTML = gh; lastGunHtml = gh; } }
+  if (gunEl) { var wpn19 = WEAPON_DEFS[weapon]; var wa19 = weaponAmmo(); var gh = wpn19.gun ? '🔫 ' + wpn19.name + '<br>' + wa19.a + ' / ' + wa19.r : (weapon === 6 ? '🏏 BAT' : '👊 FIST') + '<br>∞'; if (window.__reloadFlash) gh += '<br>↻ RELOADING…'; if (gh !== lastGunHtml) { gunEl.innerHTML = gh; lastGunHtml = gh; } }
   if (weaponsEl) {
     var wh = '';
     WEAPONS.forEach(function (w) { wh += '<div' + (w.n === weapon ? ' class="on"' : '') + '>' + w.icon + '<b>' + w.n + '</b>' + w.name + '<br><em>' + w.ammo() + '</em></div>'; });
@@ -193,31 +209,38 @@ function updateHudExtra() {
   }
   if (dispatchEl) {
     if (wanted > 0) {
+      // Round 26 (item 3): the panel shows ONLY the units that are
+      // actually responding (policeResponse, same table as render.js)
+      // — 2 cars at 1 star, one more car per star, the heli only from
+      // 3 stars, plus the chasing foot officers in the footer.
+      var resp26 = policeResponse(wanted);
       var units = [
         ['KITE-1', police, 'PURSUIT', 'pur'],
         ['MARLIN-3', police2, 'FLANKING', 'flank'],
         ['FALCON-2', police3, 'RAMMING', 'ram'],
         ['VIPER-5', police4, 'INTERCEPT', 'inter'],
         ['HARBOR-7', police5, 'ROADBLOCK', 'block'],
-        ['AIR ONE', heli, 'SPOTLIGHT', 'spot']
-      ];
+        ['COBRA-8', police6, 'BACKUP', 'pur']
+      ].slice(0, resp26.cars);
+      if (resp26.heli) units.push(['AIR ONE', heli, 'SPOTLIGHT', 'spot']);
       var dh = '<b>POLICE DISPATCH <span class="live">● LIVE</span></b>';
       var st7 = '';
       for (var si7 = 0; si7 < 5; si7++) st7 += si7 < wanted ? '★' : '<span class="dim">★</span>';
-      // Round 24 (bug #5): wanted > 0 means ALL units respond — 6
-      // police cars + 6 foot officers + the heli = 13.
-      var chasing = 13;
-      dh += '<span class="dsub">' + st7 + ' · UNITS RESPONDING: ' + chasing + '</span>';
+      dh += '<span class="dsub">' + st7 + ' · UNITS RESPONDING: ' + resp26.total + '</span>';
       units.forEach(function (u) {
         var dd = Math.round(Math.hypot(u[1].position.x - px, u[1].position.z - pz) / 5) * 5;
         var bw = Math.max(8, Math.round(100 - dd * 1.2));
         dh += '<span class="drow"><i>' + u[0] + '</i><span class="dbar"><i style="width:' + bw + '%"></i></span><b class="chip ' + u[3] + '">' + u[2] + '</b><em>' + dd + 'm</em></span>';
       });
-      dh += '<span class="more">+7 more units · DELTA-9 PURSUIT</span>';
+      dh += '<span class="more">+' + resp26.officers + ' foot officers · DELTA-9 PURSUIT</span>';
       dispatchEl.style.display = 'block';
       if (dh !== lastDispatchHtml) { dispatchEl.innerHTML = dh; lastDispatchHtml = dh; }
     } else dispatchEl.style.display = 'none';
   }
+  // Round 26 (item 6): the 🗺 button only exists in game/drive, like
+  // the mute button (body.mode-game / mode-drive show it; the base
+  // stylesheet hides .hud/.ctl on splash/menu/dialogue anyway).
+  if (typeof mapBtnEl !== 'undefined' && mapBtnEl) mapBtnEl.style.display = (screen === 'game' || screen === 'drive') ? 'block' : 'none';
 }
 
 // Staging poses for the cover shots (and live riding): hips, knees,
@@ -259,3 +282,141 @@ function stageSeat(v, seatLX, seatLZ, seatTopY, lean, pose) {
   gito.rotation.x = lean;
   stagePose(pose);
 }
+
+// Round 27 (B): respect chip — top-centre, under nothing else. The
+// number + title update on every mission complete (missions.js).
+var respectEl = document.createElement('div');
+respectEl.id = 'respectChip';
+respectEl.textContent = '★ RESPECT 0 — NOBODY';
+respectEl.style.cssText = 'position:fixed;left:50%;top:10px;transform:translateX(-50%);z-index:6;color:#ffd23f;font-size:15px;font-weight:800;letter-spacing:1px;text-shadow:0 2px 4px #000;pointer-events:none;';
+document.body.appendChild(respectEl);
+
+// Round 26 (item 4): BUSTED overlay — built in JS so index.html stays
+// untouched. A dark red veil over the frozen game: the fine (10% of
+// cash) and two ways out. Respawn puts Gito back on foot at the
+// Promenade spawn with full health + armour and the heat cleared (with
+// a 6 s spawn grace, like a fresh load); the car stays where it was.
+// Quitting to the menu applies the same reset.
+var bustedEl = document.createElement('div');
+bustedEl.id = 'bustedOverlay';
+bustedEl.style.cssText = 'position:fixed;left:0;top:0;right:0;bottom:0;z-index:8;display:none;background:rgba(20,0,0,0.85);color:#fff;text-align:center;padding-top:20vh;';
+bustedEl.innerHTML = '<div style="font-size:64px;font-weight:900;letter-spacing:8px;color:#ff3b30;">BUSTED</div><div id="bustedSub" style="font-size:18px;margin:14px 0 30px;color:#ffd23f;"></div><button id="bustedRespawnBtn" class="mbtn primary" style="margin:10px auto;text-align:center;">↻ Respawn — Promenade</button><button id="bustedMenuBtn" class="mbtn" style="margin:10px auto;text-align:center;">⬅ Quit to Menu</button>';
+document.body.appendChild(bustedEl);
+function resetAfterBusted() {
+  health = 100; armour = 50; wanted = 0; wantedT = 0;
+  if (adoptedCar) { adoptedCar.userData.adopted = false; adoptedCar = null; }
+  onFoot = true; rideMode = 'none'; rideObj = null; gito.visible = true;
+  px = 10; pz = 12; heading = 0; speed = 0;
+  spawnSafeT = t + 6;
+}
+function showBusted() {
+  // The fine lands the moment BUSTED shows (setMoney writes the HUD
+  // immediately, so the cash on screen already matches the fine text);
+  // the buttons below only reset stats and unfreeze. showBusted runs
+  // once per death — the trigger in render.js is guarded by !busted.
+  var loss = Math.floor(money * 0.1);
+  if (loss > 0) { setMoney(money - loss); saveGame(); }
+  var sub = document.getElementById('bustedSub');
+  if (sub) sub.textContent = 'The police caught you. Fine: $' + loss.toLocaleString('en-US') + ' (10% of your cash).';
+  bustedEl.style.display = 'block';
+  if (typeof updateAudio === 'function') updateAudio(0, 0);
+}
+document.getElementById('bustedRespawnBtn').addEventListener('click', function () {
+  resetAfterBusted();
+  busted = false;
+  if (typeof setPaused === 'function' && paused) setPaused(false);
+  bustedEl.style.display = 'none';
+});
+document.getElementById('bustedMenuBtn').addEventListener('click', function () {
+  resetAfterBusted();
+  busted = false;
+  bustedEl.style.display = 'none';
+  setScreen('menu');
+});
+
+// Round 26 (item 7): hit feedback — the old game showed nothing at
+// all when a shot landed (no hitmarker, no damage number), so Gito
+// could not tell a hit from a miss. A white ✕ flashes at the reticle
+// on every hit, the damage number floats up beside it, and a downed
+// target gets a red DOWN tag. Counters let probes verify hits without
+// "seeing" the screen.
+var hitmarkEl = document.createElement('div');
+hitmarkEl.id = 'hitmarker';
+hitmarkEl.textContent = '✕';
+hitmarkEl.style.cssText = 'position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:6;font-size:34px;font-weight:900;color:#fff;text-shadow:0 0 6px #ff2a8a,0 2px 4px #000;opacity:0;pointer-events:none;';
+document.body.appendChild(hitmarkEl);
+var dmgNumEl = document.createElement('div');
+dmgNumEl.id = 'dmgNum';
+dmgNumEl.style.cssText = 'position:fixed;left:50%;top:50%;z-index:6;font-size:26px;font-weight:900;color:#ffd23f;text-shadow:0 2px 4px #000;opacity:0;pointer-events:none;';
+document.body.appendChild(dmgNumEl);
+var hitMarkCount = 0, hitDownCount = 0, dmgNumAlt = 0;
+function showHitmarker(dmg, down) {
+  hitMarkCount++;
+  if (down) hitDownCount++;
+  hitmarkEl.style.opacity = '1';
+  hitmarkEl.style.color = down ? '#ff3b30' : '#fff';
+  setTimeout(function () { hitmarkEl.style.opacity = '0'; }, 300);
+  dmgNumAlt = (dmgNumAlt + 1) % 2;
+  dmgNumEl.textContent = (down ? 'DOWN  −' : '−') + dmg;
+  dmgNumEl.style.color = down ? '#ff3b30' : '#ffd23f';
+  dmgNumEl.style.transform = 'translate(' + (dmgNumAlt === 0 ? 26 : -70) + 'px,-44px)';
+  dmgNumEl.style.opacity = '1';
+  setTimeout(function () { dmgNumEl.style.opacity = '0'; }, 700);
+}
+
+// Round 26 (item 6): fullscreen map — the old game had no map at all
+// beyond the 170 px minimap, and Settings never promised one (it said
+// "M — mute"). Tab or the 🗺 button opens a 510 px live map built by
+// the same painter as the minimap; Tab / 🗺 / tap closes it. The game
+// keeps running underneath (same as the dispatch panel), so close it
+// before driving off.
+var mapOverlayEl = document.createElement('div');
+mapOverlayEl.id = 'mapOverlay';
+mapOverlayEl.style.cssText = 'position:fixed;left:0;top:0;right:0;bottom:0;z-index:20;display:none;background:rgba(10,10,20,0.92);text-align:center;padding-top:5vh;';
+mapOverlayEl.innerHTML = '<div style="color:#ffd23f;font-size:26px;font-weight:900;letter-spacing:2px;margin-bottom:10px;">TROPICAL COAST — MAP</div><canvas id="bigMap" width="510" height="510" style="width:510px;height:510px;max-width:92vw;max-height:70vh;border:4px solid #fff;border-radius:50%;background:#2a8a4a;"></canvas><div style="color:#fff;font-size:16px;margin-top:12px;">Tab / 🗺 — close &nbsp;·&nbsp; <span style="color:#ffd21a;">●</span> you &nbsp;<span style="color:#2a6aff;">●</span> police &nbsp;<span style="color:#fff;">●</span> traffic &nbsp;<span style="color:#ff8ac8;">●</span> peds</div>';
+document.body.appendChild(mapOverlayEl);
+var bigMapCanvas = document.getElementById('bigMap');
+var bigMapCtx = bigMapCanvas.getContext('2d');
+function drawBigMap() {
+  bigMapCtx.save();
+  bigMapCtx.scale(3, 3);
+  paintMap(bigMapCtx);
+  bigMapCtx.restore();
+}
+var mapOpen = false;
+function toggleMap() {
+  mapOpen = !mapOpen;
+  if (mapOpen) { drawBigMap(); mapOverlayEl.style.display = 'block'; }
+  else mapOverlayEl.style.display = 'none';
+  return mapOpen;
+}
+mapOverlayEl.addEventListener('click', function () { if (mapOpen) toggleMap(); });
+var mapBtnEl = document.createElement('button');
+mapBtnEl.id = 'mapBtn';
+mapBtnEl.textContent = '🗺';
+mapBtnEl.style.cssText = 'position:fixed;top:58px;right:312px;z-index:9;background:rgba(20,20,30,.75);color:#fff;border:2px solid rgba(255,255,255,.6);border-radius:10px;padding:8px 14px;font-size:18px;font-weight:700;cursor:pointer;display:none;';
+document.body.appendChild(mapBtnEl);
+mapBtnEl.addEventListener('click', function () { startAudio(); toggleMap(); });
+
+// Round 26 (item 6): the jump button — ⬆ on the left cluster, above
+// the run button, same .ctl look as the other touch controls. Touch
+// or click fires tryJump (render.js); Space stays Attack.
+var jumpBtnEl = document.createElement('div');
+jumpBtnEl.id = 'jumpBtn';
+jumpBtnEl.className = 'ctl';
+jumpBtnEl.textContent = '⬆';
+jumpBtnEl.style.cssText = 'left:110px;bottom:126px;width:64px;height:64px;font-size:28px;';
+document.body.appendChild(jumpBtnEl);
+function jumpBtnFire(e) { if (e) e.preventDefault(); startAudio(); if (typeof tryJump === 'function') tryJump(); }
+jumpBtnEl.addEventListener('touchstart', jumpBtnFire);
+jumpBtnEl.addEventListener('mousedown', jumpBtnFire);
+
+// Round 26 (item 6): the Settings list now matches what the game
+// actually does — it used to omit reload and jump entirely and never
+// said how fast running is (5 m/s walk, 8.5 m/s sprint, verified by
+// probe). M stays mute; the map is Tab / 🗺. The list lives in
+// index.html; hud.js corrects its text so the file stays untouched.
+(function () {
+  var rows = document.querySelectorAll('#settingsPanel .prow');
+  if (rows && rows[1]) rows[1].textContent = 'WASD / arrows — move & drive · E — enter / talk · Space — attack · J / ⬆ — jump · R — reload · 1-7 — weapons · Shift — run (8,5 m/s) · Tab / 🗺 — map (fullscreen) · M — mute · Esc / P — pause';
+})();
