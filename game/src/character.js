@@ -27,7 +27,7 @@ function makeHand(skinM, side) {
   var i, bx;
   for (i = 0; i <= 30; i++) {
     bx = 0.060 - i * 0.004;
-    s.lineTo(bx, -0.098 - 0.005 * (1 + Math.cos(6 * Math.PI * (bx + 0.06) / 0.12 - Math.PI)));
+    s.lineTo(bx, -0.100 - 0.011 * (1 + Math.cos(6 * Math.PI * (bx + 0.06) / 0.12 - Math.PI)));
   }
   if (side > 0) {
     s.quadraticCurveTo(-0.088, -0.026, -0.062, -0.004);
@@ -108,7 +108,7 @@ function makeHead(skinM, hairM, opts) {
       }
       var glint = new THREE.Mesh(new THREE.SphereGeometry(0.005, 8, 6), new THREE.MeshLambertMaterial({ color: 0xffffff }));
       glint.scale.set(1, 1, 0.5); glint.position.set(ex - 0.006, 0.032, opts.faceGlasses ? 0.100 : 0.110); head.add(glint);
-      var brow = new THREE.Mesh(new THREE.BoxGeometry(opts.luna ? 0.056 : 0.042, 0.016, 0.012), hairM);
+      var brow = new THREE.Mesh(new THREE.BoxGeometry(opts.luna ? 0.056 : 0.048, 0.016, 0.012), hairM);
       brow.position.set(ex, opts.luna ? 0.080 : 0.072, 0.086); brow.rotation.z = ex < 0 ? 0.08 : -0.08; head.add(brow);
       if (opts.luna) {
         var lash = new THREE.Mesh(new THREE.BoxGeometry(0.052, 0.007, 0.010), new THREE.MeshLambertMaterial({ color: 0x2a1a10 }));
@@ -183,17 +183,20 @@ function person(shirt, pants, female, opts) {
   var legL = new THREE.Group(), legR = new THREE.Group();
   legL.position.set(-0.11, 0.95, 0); legR.position.set(0.11, 0.95, 0);
   legL.rotation.z = 0.02; legR.rotation.z = -0.08;
+  // Round 31 item 8 (Gito 19:21 WIB): female NPCs show bare legs under
+  // a skirt (added below); male legs keep their trousers.
+  var legM = female ? skin : pantsM;
   [legL, legR].forEach(function (lg) {
     var thighPts = [];
     [[0.105, 0.25], [0.105, -0.05], [0.098, -0.17], [0.082, -0.23], [0.064, -0.25]].forEach(function (p) { thighPts.push(new THREE.Vector2(p[0], p[1])); });
-    var thigh = new THREE.Mesh(new THREE.LatheGeometry(thighPts, 20), pantsM);
+    var thigh = new THREE.Mesh(new THREE.LatheGeometry(thighPts, 20), legM);
     thigh.position.y = -0.25; lg.add(thigh);
     var knee = new THREE.Group(); knee.position.y = -0.50; lg.add(knee);
-    var kneeBall = new THREE.Mesh(new THREE.SphereGeometry(0.024, 12, 10), pantsM);
+    var kneeBall = new THREE.Mesh(new THREE.SphereGeometry(0.024, 12, 10), legM);
     kneeBall.scale.set(1.0, 0.55, 0.7); kneeBall.position.z = -0.008; knee.add(kneeBall);
     var calfPts = [];
     [[0.072, 0.10], [0.074, 0.00], [0.074, -0.06], [0.074, -0.14], [0.066, -0.24], [0.054, -0.33], [0.044, -0.40], [0.042, -0.44]].forEach(function (p) { calfPts.push(new THREE.Vector2(p[0], p[1])); });
-    var calf = new THREE.Mesh(new THREE.LatheGeometry(calfPts, 20), pantsM);
+    var calf = new THREE.Mesh(new THREE.LatheGeometry(calfPts, 20), legM);
     knee.add(calf);
     knee.add(makeShoe(0x222222, 1.25));
   });
@@ -202,8 +205,13 @@ function person(shirt, pants, female, opts) {
   [[0.158, -0.07], [0.155, 0.00], [0.165, 0.08], [0.175, 0.18], [0.19, 0.30], [0.20, 0.40], [0.205, 0.47], [0.20, 0.51], [0.175, 0.545], [0.13, 0.565], [0.085, 0.58]].forEach(function (p) { torsoPts.push(new THREE.Vector2(p[0], p[1])); });
   var torso = new THREE.Mesh(new THREE.LatheGeometry(torsoPts, 20), shirtM);
   torso.position.y = 0.95; torso.scale.z = 0.78; g.add(torso);
-  var chest = new THREE.Mesh(new THREE.SphereGeometry(0.14, 16, 12), shirtM);
-  chest.scale.set(1.0, 0.6, 0.5); chest.position.set(0, 1.33, 0.12); g.add(chest);
+  // Round 31 item 7 (Gito 19:20 WIB): the chest bulge belongs to female
+  // builds only — male chests stay flat (no sphere on Gito, officers or
+  // male civilians). Luna is untouched (her own two domes, item 6).
+  if (female) {
+    var chest = new THREE.Mesh(new THREE.SphereGeometry(0.14, 16, 12), shirtM);
+    chest.scale.set(1.0, 0.6, 0.5); chest.position.set(0, 1.33, 0.12); g.add(chest);
+  }
   var hemPts = [];
   [[0.160, 0.06], [0.172, 0.02], [0.178, -0.02], [0.170, -0.06]].forEach(function (p) { hemPts.push(new THREE.Vector2(p[0], p[1])); });
   var hem = new THREE.Mesh(new THREE.LatheGeometry(hemPts, 20), shirtM);
@@ -238,13 +246,33 @@ function person(shirt, pants, female, opts) {
     var hand = makeHand(skin, side); hand.position.y = -0.33; hand.rotation.x = (opts && opts.flat) ? 0 : -0.15; elbow.add(hand);
   });
   g.add(armL); g.add(armR);
-  var head = makeHead(skin, new THREE.MeshLambertMaterial({ color: hairCols[Math.floor(rnd() * hairCols.length)] }), { eyes: true });
+  var hairM = new THREE.MeshLambertMaterial({ color: hairCols[Math.floor(rnd() * hairCols.length)] });
+  var head = makeHead(skin, hairM, { eyes: true });
   g.add(head);
   head.rotation.z = 0.03;
+  // Round 31 item 8 (Gito 19:21 WIB): female NPCs read as female — long
+  // hair down the back with a ponytail and face-framing locks, on top of
+  // the shared head. Male heads are untouched.
+  if (female) {
+    var fBack = new THREE.Mesh(new THREE.SphereGeometry(0.11, 14, 12), hairM);
+    fBack.scale.set(1.0, 1.5, 0.7); fBack.position.set(0, -0.12, -0.08); fBack.name = 'fHair'; head.add(fBack);
+    var fPony = new THREE.Mesh(new THREE.CapsuleGeometry(0.06, 0.30, 4, 10), hairM);
+    fPony.position.set(0, -0.32, -0.16); fPony.rotation.x = 0.20; fPony.name = 'fPony'; head.add(fPony);
+    [-0.11, 0.11].forEach(function (lx) {
+      var fLock = new THREE.Mesh(new THREE.CapsuleGeometry(0.028, 0.16, 4, 8), hairM);
+      fLock.position.set(lx, -0.22, 0.05); fLock.rotation.x = 0.06; fLock.name = 'fLock'; head.add(fLock);
+    });
+  }
   var hipPts = [];
   [[0.165, 0.10], [0.178, 0.04], [0.182, -0.04], [0.172, -0.10], [0.158, -0.14]].forEach(function (p) { hipPts.push(new THREE.Vector2(p[0], p[1])); });
   var pelvis = new THREE.Mesh(new THREE.LatheGeometry(hipPts, 20), pantsM);
   pelvis.position.y = 0.92; pelvis.scale.z = 0.80; g.add(pelvis);
+  if (female) {
+    var skirtPts = [];
+    [[0.285, -0.18], [0.272, -0.12], [0.248, -0.02], [0.222, 0.08], [0.19, 0.17]].forEach(function (p) { skirtPts.push(new THREE.Vector2(p[0], p[1])); });
+    var skirt = new THREE.Mesh(new THREE.LatheGeometry(skirtPts, 20), pantsM);
+    skirt.position.y = 0.78; skirt.scale.z = 0.80; skirt.name = 'fSkirt'; g.add(skirt);
+  }
   var traps = new THREE.Mesh(new THREE.SphereGeometry(0.13, 16, 12), female ? skin : shirtM);
   traps.scale.set(1.9, 0.45, 0.85); traps.position.y = 1.47; g.add(traps);
   g.userData = { armL: armL, armR: armR, legL: legL, legR: legR, head: head };
@@ -284,8 +312,8 @@ var gito = new THREE.Group();
   var torsoPts = [];
   [[0.158, -0.07], [0.155, 0.00], [0.165, 0.08], [0.175, 0.18], [0.19, 0.30], [0.20, 0.40], [0.205, 0.47], [0.20, 0.51], [0.175, 0.545], [0.13, 0.565], [0.085, 0.58]].forEach(function (p) { torsoPts.push(new THREE.Vector2(p[0], p[1])); });
   var torso = new THREE.Mesh(new THREE.LatheGeometry(torsoPts, 20), mShirt); torso.position.y = 0.95; torso.scale.z = 0.78; gito.add(torso);
-  var chest = new THREE.Mesh(new THREE.SphereGeometry(0.14, 16, 12), mShirt);
-  chest.scale.set(1.0, 0.6, 0.5); chest.position.set(0, 1.33, 0.12); gito.add(chest);
+  // Round 31 item 7 (Gito 19:20 WIB): Gito's chest sphere deleted —
+  // flat male chest, no bulge. (The two lines were here.)
   var hemPts = [];
   [[0.160, 0.06], [0.172, 0.02], [0.178, -0.02], [0.170, -0.06]].forEach(function (p) { hemPts.push(new THREE.Vector2(p[0], p[1])); });
   var hem = new THREE.Mesh(new THREE.LatheGeometry(hemPts, 20), mShirt);
@@ -388,8 +416,8 @@ var woman = new THREE.Group();
   // band at the gather, and two layers of face-framing locks.
   var wBack = new THREE.Mesh(new THREE.SphereGeometry(0.12, 14, 12), wHairM);
   wBack.scale.set(0.92, 1.20, 0.95); wBack.position.set(0, -0.05, -0.10); head.add(wBack);
-  [[-0.062, 0.098, 0.38], [0.002, 0.106, 0.08], [0.066, 0.096, -0.38]].forEach(function (b) {
-    var bang = new THREE.Mesh(new THREE.SphereGeometry(0.050, 12, 10), wHairM);
+  [[-0.068, 0.096, 0.45], [0.002, 0.108, 0.08], [0.070, 0.094, -0.45]].forEach(function (b) {
+    var bang = new THREE.Mesh(new THREE.SphereGeometry(0.048, 12, 10), wHairM);
     bang.scale.set(1.0, 0.34, 0.5); bang.position.set(b[0], b[1], 0.080); bang.rotation.z = b[2]; head.add(bang);
   });
   var wPony = new THREE.Mesh(new THREE.CapsuleGeometry(0.095, 0.42, 4, 12), wHairM);
