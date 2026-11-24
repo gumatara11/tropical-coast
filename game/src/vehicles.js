@@ -12,7 +12,12 @@ function makeCar(color, x, z, kind) {
   var g = new THREE.Group();
   var bodyM = new THREE.MeshLambertMaterial({ color: color });
   var dark = new THREE.MeshLambertMaterial({ color: 0x1a1a2a });
-  var glassM = new THREE.MeshLambertMaterial({ color: 0x2a4a5a });
+  // Round 29 (item 2): real glass — transparent so a seated driver shows
+  // through the side windows / cabin box instead of hiding behind an
+  // opaque dark slab. 0.30 keeps a light tint while letting the driver
+  // read through it; the sport inlay covers a real cabin opening now,
+  // and the sedan cabin box is glass all round.
+  var glassM = new THREE.MeshLambertMaterial({ color: 0x2a4a5a, transparent: true, opacity: 0.30 });
   if (kind === 'sport') {
     var sportBodyM = bodyM;
     if (color === 0xffd21a && TEX['car-side']) {
@@ -34,26 +39,44 @@ function makeCar(color, x, z, kind) {
     bp.lineTo(2.05, 0.32);
     bp.lineTo(-2.05, 0.32);
     bp.closePath();
+    // Round 29 (item 2, Gito live 17:11 WIB): a REAL side-window opening
+    // through the cabin. The old slab was solid, so the only way to see
+    // the driver was to poke his head through the roof (R26) — Gito read
+    // it as "mobil tampak kosong, hanya kepala menembus atap". The hole
+    // follows the glass inlay, inset from the silhouette (top rail ~0.11
+    // under the roof crown, front edge clear of the nose slope), so the
+    // roof stays solid and the driver shows through the window instead.
+    // Bottom edge 0.92: low enough that his SHOULDERS (pink palm shirt)
+    // and the steering wheel show too, not just a small pale head.
+    // Clockwise winding (opposite the CCW body shape).
+    var winHole = new THREE.Path();
+    winHole.moveTo(-0.35, 0.92);
+    winHole.lineTo(1.10, 0.92);
+    winHole.lineTo(1.00, 1.24);
+    winHole.quadraticCurveTo(0.75, 1.33, 0.35, 1.33);
+    winHole.quadraticCurveTo(0.00, 1.30, -0.25, 1.14);
+    winHole.closePath();
+    bp.holes.push(winHole);
     var bodyGeo = new THREE.ExtrudeGeometry(bp, { depth: 2.1, bevelEnabled: true, bevelThickness: 0.08, bevelSize: 0.07, bevelSegments: 2, curveSegments: 12 });
     var carBody = new THREE.Mesh(bodyGeo, sportBodyM);
     carBody.rotation.y = -Math.PI / 2; carBody.position.x = 1.05; g.add(carBody);
     // Dark glass inlay on both flanks, top edge just below the body line,
     // with a body-colour B-pillar splitting front and rear windows.
     var gp = new THREE.Shape();
-    gp.moveTo(-0.60, 1.02);
+    gp.moveTo(-0.60, 0.90);
     gp.lineTo(-0.45, 1.14);
     gp.quadraticCurveTo(-0.05, 1.36, 0.30, 1.42);
     gp.quadraticCurveTo(0.80, 1.42, 1.05, 1.28);
     gp.lineTo(1.15, 1.04);
-    gp.lineTo(1.15, 1.02);
-    gp.lineTo(-0.60, 1.02);
+    gp.lineTo(1.15, 0.90);
+    gp.lineTo(-0.60, 0.90);
     gp.closePath();
     var glassGeo = new THREE.ExtrudeGeometry(gp, { depth: 2.34, bevelEnabled: false, curveSegments: 10 });
     var glassInlay = new THREE.Mesh(glassGeo, glassM);
     glassInlay.rotation.y = -Math.PI / 2; glassInlay.position.x = 1.17; g.add(glassInlay);
     [-1.19, 1.19].forEach(function (px) {
-      var pillar = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.40, 0.07), bodyM);
-      pillar.position.set(px, 1.23, 0.45); g.add(pillar);
+      var pillar = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.52, 0.07), bodyM);
+      pillar.position.set(px, 1.17, 0.45); g.add(pillar);
     });
     [-1.08, 1.08].forEach(function (sx) {
       var skirt = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.12, 3.3), dark);
@@ -67,13 +90,14 @@ function makeCar(color, x, z, kind) {
         cut.position.set(fx, 0.76, dz); g.add(cut);
       });
       var handle = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.05, 0.24), dark);
-      handle.position.set(fx, 1.00, 0.55); g.add(handle);
+      handle.position.set(fx, 0.86, 0.55); g.add(handle);
       var haunch = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.2, 1.0), bodyM);
       haunch.position.set(fx, 0.88, 1.45); g.add(haunch);
     });
     [-1.19, 1.19].forEach(function (sx) {
-      var streak = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.25, 0.06), new THREE.MeshBasicMaterial({ color: 0xdfe8ee }));
-      streak.position.set(sx, 1.20, 0.1); streak.rotation.x = 0.4; g.add(streak);
+      // Round 29 (item 2): the white glare streaks are GONE — they sat
+      // across the window band, and with the cabin now a real opening
+      // they floated in mid-air over the glass like a white slash.
       var sideLamp = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.12, 0.28), new THREE.MeshBasicMaterial({ color: 0xfff6c8 }));
       sideLamp.position.set(sx * 0.96, 0.66, -2.28); g.add(sideLamp);
     });
@@ -105,6 +129,21 @@ function makeCar(color, x, z, kind) {
     [-1.22, 1.22].forEach(function (mx) {
       var mir = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.12, 0.3), dark);
       mir.position.set(mx, 1.16, -0.15); g.add(mir);
+    });
+    // Round 29 (item 2): a steering wheel + driver headrest. The driver
+    // sits at (-0.5, 0.35) with his head at local z ~0.20, so the wheel
+    // rim (z -0.10, y 1.06) is where his hands reach and the headrest
+    // (z 0.55, y 1.20) frames his head from behind — from the side the
+    // window now reads as an occupied driver's seat, not an empty cabin.
+    var wheel = new THREE.Mesh(new THREE.TorusGeometry(0.17, 0.025, 8, 20), dark);
+    wheel.position.set(-0.5, 1.06, -0.10); wheel.rotation.x = 0.45; g.add(wheel);
+    var wcol = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 0.32), dark);
+    wcol.position.set(-0.5, 0.98, -0.32); wcol.rotation.x = 0.45; g.add(wcol);
+    var hrest = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.16, 0.10), dark);
+    hrest.position.set(-0.5, 1.20, 0.55); g.add(hrest);
+    [-0.58, -0.42].forEach(function (hx) {
+      var hpost = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.12, 0.03), dark);
+      hpost.position.set(hx, 1.08, 0.55); g.add(hpost);
     });
     var wing = new THREE.Mesh(new THREE.BoxGeometry(2.35, 0.05, 0.3), dark); wing.position.set(0, 0.96, 2.28); g.add(wing);
     [-1.15, 1.15].forEach(function (epx) {

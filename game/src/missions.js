@@ -207,10 +207,36 @@ function nearestRideable() {
   // the boats. The circling tour heli and the police heli are NOT here
   // — they fly too high to board.
   if (typeof parkedHeli !== 'undefined' && parkedHeli) consider('heli', parkedHeli, parkedHeli.position.x, parkedHeli.position.z, 6, false);
+  // Round 29 (item 1, Gito live 17:11 WIB): the player's OWN car beats an
+  // adoptable cruiser/taxi/traffic car. The coupe sits at (0,10) BETWEEN
+  // the two police patrol lanes (x=-3.5/+3.5, cruisers driving +z at
+  // 5 m/s), so a passing cruiser is nearer than the coupe for a few
+  // frames — strictly-nearest E then adopted the POLICE CRUISER instead
+  // of the Coast GT (reproduced live: E2E probe, tryEnter straight after
+  // a cruiser passed the east flank). The pill + arrow read this same
+  // helper, so they now point at the GT too. Bikes/boats/heli keep the
+  // strictly-nearest race against the own car — only adoptable CARS are
+  // demoted, because stealing one is a bonus, never the default.
+  if (best && best.adopt) {
+    var own = null, od = 4;
+    function ownCar(obj, x, z) { var d = Math.hypot(x - px, z - pz); if (d < od) { od = d; own = { kind: 'car', obj: obj, x: x, z: z, adopt: false }; } }
+    ownCar(null, carX, carZ);
+    if (carMesh !== player) ownCar(player, player.position.x, player.position.z);
+    if (carMesh !== parked1) ownCar(parked1, parked1.position.x, parked1.position.z);
+    if (carMesh !== parked2) ownCar(parked2, parked2.position.x, parked2.position.z);
+    if (own) return own;
+  }
   return best;
 }
 function tryEnter() {
   if (screen !== 'game' && screen !== 'drive') return;
+  // Round 29 (item 1, MASUK stuck in ?cover=1): cover is a staging
+  // mode, not gameplay — applyCoverSpot re-pins onFoot=true every
+  // frame, so an E that slipped through left the hybrid stuck state
+  // onFoot:true + rideMode:'car', and E also advanced the staged
+  // talk-spot dialogue. Cover ignores E entirely (keyboard, pill,
+  // touch): no enter, no exit, no dialogue advance.
+  if (cover) return;
   if (talking) { advanceTalk(); return; }
   var m = curMission();
   // Round 25 (bug #3): the talk radius was 3.5 m while Luna stands

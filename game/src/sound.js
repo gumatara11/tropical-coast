@@ -142,6 +142,13 @@ function toggleMute() {
   if (masterGain) masterGain.gain.value = audioMuted ? 0 : 0.5;
   var btn = document.getElementById('muteBtn');
   if (btn) btn.textContent = audioMuted ? '🔇' : '🔊';
+  // Round 29 (item 6): the Settings mute button kept its own label
+  // ("Sound: ON") and never learned about M / the HUD button — so
+  // after M muted, Settings still read ON, and tapping it UNMUTED
+  // (label flipping to OFF while the music came back). Both labels
+  // now follow the one flag, whichever control was used.
+  var sbtn = document.getElementById('settingsMuteBtn');
+  if (sbtn) sbtn.textContent = audioMuted ? 'Sound: OFF' : 'Sound: ON';
   return audioMuted;
 }
 window.addEventListener('keydown', function (e) { if (e.code === 'KeyM') toggleMute(); });

@@ -385,7 +385,14 @@ function updateFlee(list, dt) {
     u.walk = (u.walk || 0) + dt * 9;
     var sw = Math.sin(u.walk) * 0.55;
     if (u.legL) { u.legL.rotation.x = sw; u.legR.rotation.x = -sw; }
-    if (u.armL) { u.armL.rotation.x = -1.8 + Math.sin(t * 10) * 0.2; u.armR.rotation.x = -1.8 - Math.sin(t * 10) * 0.2; }
+    // Round 29 (item 4, Gito live 17:11 WIB): the old flee pose held
+    // both arms stiff at -1.8 (raised forward-up) for the whole run —
+    // from the side/behind that reads as a T-pose statue, and every
+    // gunshot triggered it again ("berulang kali"). A fleeing person
+    // RUNS: arms pump opposite the legs, like the walk swing but
+    // bigger and faster. The bowed head stays — the panic read now
+    // comes from the run itself, not from frozen raised arms.
+    if (u.armL) { u.armL.rotation.x = -sw * 1.4; u.armR.rotation.x = sw * 1.4; }
     if (u.head) u.head.rotation.x = 0.25;
     u.fleeT -= dt;
     if (u.fleeT <= 0) endFlee(pd);
@@ -931,9 +938,13 @@ function frame() {
       // never point at a farther police car while a bike is closer.
       var nr = nearestRideable();
       var nearRide = nr ? { x: nr.x, z: nr.z } : null;
-      if (enterEl) { enterEl.style.display = (nearRide && !talking) ? 'block' : 'none'; if (nearRide && !talking) enterEl.textContent = 'MASUK'; }
-      enterArrow.visible = !!nearRide;
-      if (nearRide) { enterArrow.position.set(nearRide.x, 2.9 + Math.sin(t * 3) * 0.25, nearRide.z); enterArrow.rotation.y = t * 1.5; }
+      // Round 29 (item 1): the MASUK pill must not invite a tap in
+      // ?cover=1 staging — tryEnter ignores E there, so showing the
+      // pill would promise an action that never happens. (The drive
+      // branches already hide the pill in cover.)
+      if (enterEl) { enterEl.style.display = (nearRide && !talking && !cover) ? 'block' : 'none'; if (nearRide && !talking && !cover) enterEl.textContent = 'MASUK'; }
+      enterArrow.visible = !!nearRide && !cover;
+      if (nearRide && !cover) { enterArrow.position.set(nearRide.x, 2.9 + Math.sin(t * 3) * 0.25, nearRide.z); enterArrow.rotation.y = t * 1.5; }
       // "Talk to NPC" prompt when close to the current mission giver.
       // Dialogue itself starts only on E (tryEnter) — walking up does not
       // auto-start it.
@@ -1084,13 +1095,28 @@ function frame() {
     carMesh.position.set(carX, groundY(carX, carZ), carZ);
     carMesh.rotation.y = carHeading;
     if (carMesh.userData.frontWheels) carMesh.userData.frontWheels.forEach(function (wg) { wg.rotation.y = steer * 0.5; });
-    // Round 26 (worker A, item 2): Gito drives VISIBLY — seated in the
-    // driver's seat (left seat, hips inside the body, head above the
-    // roofline) with hands forward to the wheel, so the chase camera
-    // sees the driver instead of an empty car. Same stageSeat pose
-    // language as the boat/bike riders; no limb child is touched.
+    // Round 29 (item 2, Gito live 17:11 WIB): Gito drives INSIDE the car
+    // now, not through the roof. The R26 seat (seatTopY 1.10) put his
+    // head 0.38 m ABOVE the roof crown — from the side the car read as
+    // empty with only a head piercing the roof. Seat top 0.46 puts his
+    // head centre ~1.30, inside the side-window band (sport glass
+    // 1.02-1.34, sedan cabin 0.88-1.36): he shows through the (now
+    // transparent) glass from the side, and the high chase camera still
+    // catches the top of his head over the roof — no clipping anywhere.
+    // Round 29 (item 2, foot tuck): the REAL knees are leg.children[2] —
+    // stageSeat's knee value turns children[1] (thigh skin), so it never
+    // moved the shins. The seat is low (hips y 0.47) while thigh+shin is
+    // 0.94 long, so a hanging shin puts the soles at y -0.09, clipping
+    // the ground under the sill, and straight legs still leave the heel
+    // at 0.13. A deep fold (knee 3.4) tucks the feet under the seat —
+    // lowest point y 0.35, inside the body (sill bottom 0.32). Legs are
+    // inside the slab either way; only torso/head/arms ever show. The
+    // on-foot branch overwrites children[2] every frame, so this never
+    // sticks after dismounting.
     gito.visible = true;
-    stageSeat(carMesh, -0.5, 0.35, carMesh.position.y + 1.10, 0.15, { hip: -1.35, knee: 1.5, shoulder: -0.9, elbow: -0.5, head: 0, spread: 0.12 });
+    stageSeat(carMesh, -0.5, 0.35, carMesh.position.y + 0.46, 0.15, { hip: -1.5, knee: -0.6, shoulder: -0.9, elbow: -0.5, head: 0, spread: 0.12 });
+    gito.userData.legL.children[2].rotation.x = 3.4;
+    gito.userData.legR.children[2].rotation.x = 3.4;
     kmh = Math.round(speed * 3.6);
     if (kmh > 130) raiseWanted(1); // speeding draws the police
     // Collision with traffic / police (bike traffic included).
@@ -1149,9 +1175,18 @@ function frame() {
     carMesh.position.set(carX, groundY(carX, carZ), carZ);
     carMesh.rotation.y = carHeading;
     // Nearby peds panic when the car is close.
+    // Round 29 (item 4): the old panic pose pinned both arms at -2
+    // (raised forward-up) while the car was near — the same stiff
+    // horizontal-arms read as the flee pose. The ped sidesteps away
+    // from the car; its arms pump like a run instead, using its live
+    // walk phase, so no frozen raised arms ever show here either.
     peds.forEach(function (pd) {
       var dd = Math.hypot(pd.position.x - px, pd.position.z - pz);
-      if (!onFoot && dd < 6 && !(pd.userData.fleeT > 0)) { pd.position.x += (pd.position.x > px ? 1 : -1) * dt * 3; pd.userData.armL.rotation.x = -2; pd.userData.armR.rotation.x = -2; }
+      if (!onFoot && dd < 6 && !(pd.userData.fleeT > 0)) {
+        pd.position.x += (pd.position.x > px ? 1 : -1) * dt * 3;
+        var psw = Math.sin(pd.userData.walk || 0) * 0.8;
+        pd.userData.armL.rotation.x = -psw; pd.userData.armR.rotation.x = psw;
+      }
     });
     if (panicT > 0) panicT -= dt;
     // HUD: speedometer, minimap, mission panel, stars, car info, radio.
