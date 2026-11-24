@@ -263,6 +263,9 @@ function tryEnter() {
       if (walkable(rideObj.position.x + 2, rideObj.position.z + 2)) { px = rideObj.position.x + 2; pz = rideObj.position.z + 2; }
       else { px = 29; pz = Math.max(-205, Math.min(205, rideObj.position.z)); }
       heading = rideHeading; heliAlt = 0;
+      // Round 27 (P3 20 fix): land the heli itself — without this it
+      // kept hovering at 12 m after Gito got out, floating mid-air.
+      rideObj.position.y = groundY(rideObj.position.x, rideObj.position.z);
     }
     onFoot = true; gito.visible = true; speed = 0; rideSpeed = 0; rideMode = 'none'; rideObj = null;
   }
@@ -511,6 +514,21 @@ document.getElementById('exitBtn').addEventListener('click', function () { start
 document.getElementById('settingsClose').addEventListener('click', function () { hidePanels(); });
 document.getElementById('creditsClose').addEventListener('click', function () { hidePanels(); });
 document.getElementById('settingsMuteBtn').addEventListener('click', function () { startAudio(); var mm = toggleMute(); document.getElementById('settingsMuteBtn').textContent = mm ? 'Sound: OFF' : 'Sound: ON'; });
+// Round 27 (Settings): brightness slider — a CSS filter on the canvas,
+// persisted in localStorage and applied on load. The HUD stays crisp
+// because only the 3D canvas is filtered.
+function applyBrightness(v) {
+  var c = document.getElementById('c');
+  if (c) c.style.filter = 'brightness(' + v + '%)';
+  var bv = document.getElementById('brightVal'); if (bv) bv.textContent = v + '%';
+  var bs = document.getElementById('brightSlider'); if (bs && String(bs.value) !== String(v)) bs.value = v;
+}
+var _bv = 100;
+try { _bv = parseInt(localStorage.getItem('tc-brightness') || '100', 10) || 100; } catch (e) {}
+if (_bv < 50) _bv = 50; if (_bv > 150) _bv = 150;
+applyBrightness(_bv);
+var _bs = document.getElementById('brightSlider');
+if (_bs) _bs.addEventListener('input', function () { var v = parseInt(_bs.value, 10); try { localStorage.setItem('tc-brightness', String(v)); } catch (e) {} applyBrightness(v); });
 document.getElementById('resumeBtn').addEventListener('click', function () { setPaused(false); });
 document.getElementById('pauseSaveBtn').addEventListener('click', function () { saveGame(); var b2 = document.getElementById('pauseSaveBtn'); b2.textContent = '✓ Saved'; });
 document.getElementById('pauseQuitBtn').addEventListener('click', function () { saveGame(); setPaused(false); setScreen('menu'); });
