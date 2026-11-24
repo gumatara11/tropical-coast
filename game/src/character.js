@@ -96,12 +96,24 @@ function makeHead(skinM, hairM, opts) {
   });
   if (opts.eyes) {
     [-0.048, 0.048].forEach(function (ex) {
-      var iris = new THREE.Mesh(new THREE.SphereGeometry(0.022, 12, 10), new THREE.MeshLambertMaterial({ color: 0x2a1a10 }));
-      iris.scale.set(1, 1.25, 0.4); iris.position.set(ex, 0.025, opts.faceGlasses ? 0.100 : 0.098); head.add(iris);
-      var glint = new THREE.Mesh(new THREE.SphereGeometry(0.0045, 8, 6), new THREE.MeshLambertMaterial({ color: 0xffffff }));
-      glint.scale.set(1, 1, 0.5); glint.position.set(ex - 0.005, 0.031, opts.faceGlasses ? 0.100 : 0.108); head.add(glint);
-      var brow = new THREE.Mesh(new THREE.BoxGeometry(0.042, 0.014, 0.012), hairM);
-      brow.position.set(ex, 0.072, 0.084); head.add(brow);
+      if (opts.luna) {
+        var sclera = new THREE.Mesh(new THREE.SphereGeometry(0.034, 14, 10), new THREE.MeshLambertMaterial({ color: 0xffffff }));
+        sclera.scale.set(1, 1.2, 0.45); sclera.position.set(ex, 0.025, 0.092); head.add(sclera);
+      }
+      var iris = new THREE.Mesh(new THREE.SphereGeometry(opts.luna ? 0.024 : 0.022, 12, 10), new THREE.MeshLambertMaterial({ color: opts.luna ? 0x5a2e14 : 0x2a1a10 }));
+      iris.scale.set(1, 1.25, 0.4); iris.position.set(ex, 0.025, opts.faceGlasses ? 0.100 : 0.100); head.add(iris);
+      if (opts.luna) {
+        var pupil = new THREE.Mesh(new THREE.SphereGeometry(0.012, 10, 8), new THREE.MeshLambertMaterial({ color: 0x1a0e06 }));
+        pupil.scale.set(1, 1.25, 0.4); pupil.position.set(ex, 0.025, 0.106); head.add(pupil);
+      }
+      var glint = new THREE.Mesh(new THREE.SphereGeometry(0.005, 8, 6), new THREE.MeshLambertMaterial({ color: 0xffffff }));
+      glint.scale.set(1, 1, 0.5); glint.position.set(ex - 0.006, 0.032, opts.faceGlasses ? 0.100 : 0.110); head.add(glint);
+      var brow = new THREE.Mesh(new THREE.BoxGeometry(opts.luna ? 0.056 : 0.042, 0.016, 0.012), hairM);
+      brow.position.set(ex, opts.luna ? 0.080 : 0.072, 0.086); brow.rotation.z = ex < 0 ? 0.08 : -0.08; head.add(brow);
+      if (opts.luna) {
+        var lash = new THREE.Mesh(new THREE.BoxGeometry(0.052, 0.007, 0.010), new THREE.MeshLambertMaterial({ color: 0x2a1a10 }));
+        lash.position.set(ex, 0.056, 0.096); lash.rotation.z = ex < 0 ? 0.10 : -0.10; head.add(lash);
+      }
     });
   }
   if (opts.faceGlasses) {
@@ -122,9 +134,9 @@ function makeHead(skinM, hairM, opts) {
     });
   }
   if (opts.headGlasses) {
-    var hgM = new THREE.MeshLambertMaterial({ color: 0x6a4a2a });
+    var hgM = new THREE.MeshLambertMaterial({ color: 0x23232a });
     [-0.055, 0.055].forEach(function (ex) {
-      var hlens = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.028, 0.012), hgM);
+      var hlens = new THREE.Mesh(new THREE.BoxGeometry(0.066, 0.032, 0.012), hgM);
       hlens.position.set(ex, 0.14, 0.09);
       hlens.rotation.x = -0.40;
       hlens.rotation.y = ex < 0 ? 0.12 : -0.12;
@@ -136,19 +148,25 @@ function makeHead(skinM, hairM, opts) {
   if (opts.earrings) {
     var goldM = new THREE.MeshLambertMaterial({ color: 0xd4af37 });
     [-0.16, 0.16].forEach(function (ex) {
-      var hoop = new THREE.Mesh(new THREE.TorusGeometry(0.03, 0.007, 6, 14), goldM);
+      var hoop = new THREE.Mesh(new THREE.TorusGeometry(0.024, 0.0055, 6, 14), goldM);
       hoop.position.set(ex, -0.07, 0.01); hoop.rotation.y = Math.PI / 2; head.add(hoop);
     });
   }
   var nose = new THREE.Mesh(new THREE.SphereGeometry(0.015, 10, 8), skinM);
   nose.scale.set(0.85, 1.1, 0.85); nose.position.set(0, -0.028, 0.120); head.add(nose);
   if (opts.smile) {
-    var smile = new THREE.Mesh(new THREE.TorusGeometry(0.030, 0.005, 6, 12, Math.PI), new THREE.MeshLambertMaterial({ color: 0x7a4a3a }));
-    smile.position.set(0, -0.078, 0.094); smile.rotation.z = Math.PI;
+    var smile = new THREE.Mesh(new THREE.TorusGeometry(opts.luna ? 0.038 : 0.030, opts.luna ? 0.007 : 0.005, 6, 12, Math.PI), new THREE.MeshLambertMaterial({ color: opts.luna ? 0xa04a38 : 0x7a4a3a }));
+    smile.position.set(0, opts.luna ? -0.074 : -0.078, opts.luna ? 0.096 : 0.094); smile.rotation.z = Math.PI;
     head.add(smile);
   } else {
     var mouth = new THREE.Mesh(new THREE.BoxGeometry(0.036, 0.005, 0.008), new THREE.MeshLambertMaterial({ color: 0x8a5a48 }));
     mouth.position.set(0, -0.085, 0.092); head.add(mouth);
+  }
+  if (opts.luna) {
+    [-0.064, 0.064].forEach(function (bx) {
+      var blush = new THREE.Mesh(new THREE.SphereGeometry(0.020, 10, 8), new THREE.MeshLambertMaterial({ color: 0xf0998a }));
+      blush.scale.set(1, 0.6, 0.4); blush.position.set(bx, -0.042, 0.082); head.add(blush);
+    });
   }
   return head;
 }
@@ -339,12 +357,20 @@ scene.add(gito);
 // asymmetric, head tilted a touch.
 var woman = new THREE.Group();
 (function () {
-  var wSkin = new THREE.MeshLambertMaterial({ color: 0xf0c8a0 });
+  var wSkin = new THREE.MeshLambertMaterial({ color: 0xeab183 });
   var wDenim = new THREE.MeshLambertMaterial({ color: 0x4a6fa5 });
   var wTopPts = [];
   [[0.158, -0.07], [0.155, 0.00], [0.160, 0.10], [0.168, 0.20], [0.178, 0.28], [0.182, 0.36], [0.178, 0.44], [0.165, 0.48], [0.135, 0.51], [0.105, 0.53], [0.085, 0.54]].forEach(function (p) { wTopPts.push(new THREE.Vector2(p[0], p[1])); });
   var wTop = new THREE.Mesh(new THREE.LatheGeometry(wTopPts, 20), new THREE.MeshLambertMaterial({ color: 0xff8ac8 }));
   wTop.position.y = 0.95; wTop.scale.z = 0.80; woman.add(wTop);
+  var wHem = new THREE.Mesh(new THREE.TorusGeometry(0.163, 0.018, 6, 20), new THREE.MeshLambertMaterial({ color: 0xff6fa8 }));
+  wHem.position.y = 0.90; wHem.rotation.x = Math.PI / 2; wHem.scale.set(1, 0.8, 1); woman.add(wHem);
+  var wNeckline = new THREE.Mesh(new THREE.TorusGeometry(0.100, 0.012, 6, 20), new THREE.MeshLambertMaterial({ color: 0xff6fa8 }));
+  wNeckline.position.y = 1.475; wNeckline.rotation.x = Math.PI / 2; wNeckline.scale.set(1, 0.8, 1); woman.add(wNeckline);
+  [-0.07, 0, 0.07].forEach(function (fx) {
+    var fold = new THREE.Mesh(new THREE.BoxGeometry(0.022, 0.24, 0.012), new THREE.MeshLambertMaterial({ color: 0xff7ab0 }));
+    fold.position.set(fx, 1.15, 0.132); woman.add(fold);
+  });
   [-0.155, 0.155].forEach(function (sx) {
     var dome = new THREE.Mesh(new THREE.SphereGeometry(0.052, 14, 12), wSkin);
     dome.scale.set(1.0, 0.42, 0.8);
@@ -353,20 +379,32 @@ var woman = new THREE.Group();
   });
   var wNeck = new THREE.Mesh(new THREE.CapsuleGeometry(0.055, 0.16, 4, 12), wSkin);
   wNeck.position.y = 1.60; woman.add(wNeck);
-  var wHairM = new THREE.MeshLambertMaterial({ color: 0x3a2a1a });
-  var head = makeHead(wSkin, wHairM, { eyes: true, headGlasses: true, earrings: true, smile: true });
-  head.scale.set(0.95, 0.95, 0.95);
-  // Round 27 (Luna hair): the old back mass was a wide flat slab that
-  // covered the head and upper back from behind — narrower and deeper
-  // now, hugging the skull, with a thinner ponytail and two side locks
-  // hanging in front of the shoulders, so the hair reads as hair.
+  var wHairM = new THREE.MeshLambertMaterial({ color: 0x5a3a22 });
+  var head = makeHead(wSkin, wHairM, { eyes: true, headGlasses: true, earrings: true, smile: true, luna: true });
+  head.scale.set(0.90, 0.90, 0.90);
+  // Round 31 (Gito 18:51 WIB): hair like the dialogue portrait — layered,
+  // not one solid helmet. Side-swept bangs across the forehead, a high
+  // ponytail in two angled segments so the tip is uneven and wavy, a tie
+  // band at the gather, and two layers of face-framing locks.
   var wBack = new THREE.Mesh(new THREE.SphereGeometry(0.12, 14, 12), wHairM);
-  wBack.scale.set(0.95, 1.25, 1.0); wBack.position.set(0, -0.06, -0.10); head.add(wBack);
-  var wPony = new THREE.Mesh(new THREE.CapsuleGeometry(0.085, 0.55, 4, 12), wHairM);
-  wPony.position.set(0.06, -0.22, -0.26); wPony.rotation.x = 0.25; head.add(wPony);
+  wBack.scale.set(0.92, 1.20, 0.95); wBack.position.set(0, -0.05, -0.10); head.add(wBack);
+  [[-0.062, 0.098, 0.38], [0.002, 0.106, 0.08], [0.066, 0.096, -0.38]].forEach(function (b) {
+    var bang = new THREE.Mesh(new THREE.SphereGeometry(0.050, 12, 10), wHairM);
+    bang.scale.set(1.0, 0.34, 0.5); bang.position.set(b[0], b[1], 0.080); bang.rotation.z = b[2]; head.add(bang);
+  });
+  var wPony = new THREE.Mesh(new THREE.CapsuleGeometry(0.095, 0.42, 4, 12), wHairM);
+  wPony.position.set(0.09, -0.16, -0.19); wPony.rotation.x = 0.30; wPony.rotation.z = -0.10; head.add(wPony);
+  var wPonyTip = new THREE.Mesh(new THREE.CapsuleGeometry(0.068, 0.26, 4, 12), wHairM);
+  wPonyTip.position.set(0.12, -0.52, -0.32); wPonyTip.rotation.x = 0.45; wPonyTip.rotation.z = -0.18; head.add(wPonyTip);
+  var wTie = new THREE.Mesh(new THREE.TorusGeometry(0.055, 0.014, 6, 14), new THREE.MeshLambertMaterial({ color: 0x2a1a10 }));
+  wTie.position.set(0.09, 0.05, -0.135); wTie.rotation.x = 1.35; wTie.rotation.z = -0.10; head.add(wTie);
   [-0.10, 0.10].forEach(function (lx) {
-    var wLock = new THREE.Mesh(new THREE.CapsuleGeometry(0.035, 0.22, 4, 8), wHairM);
-    wLock.position.set(lx, -0.24, 0.06); wLock.rotation.x = 0.08; head.add(wLock);
+    var wLock = new THREE.Mesh(new THREE.CapsuleGeometry(0.032, 0.22, 4, 8), wHairM);
+    wLock.position.set(lx, -0.24, 0.06); wLock.rotation.x = 0.08; wLock.rotation.z = lx < 0 ? 0.08 : -0.08; head.add(wLock);
+  });
+  [-0.135, 0.135].forEach(function (lx) {
+    var wLock2 = new THREE.Mesh(new THREE.CapsuleGeometry(0.026, 0.14, 4, 8), wHairM);
+    wLock2.position.set(lx, -0.16, 0.02); wLock2.rotation.x = 0.06; wLock2.rotation.z = lx < 0 ? 0.12 : -0.12; head.add(wLock2);
   });
   woman.add(head);
   var wHipsPts = [];
@@ -402,7 +440,7 @@ var woman = new THREE.Group();
     [[0.088, 0.17], [0.086, -0.10], [0.080, -0.15], [0.074, -0.17]].forEach(function (p) { upperPts.push(new THREE.Vector2(p[0], p[1])); });
     var upper = new THREE.Mesh(new THREE.LatheGeometry(upperPts, 20), wSkin);
     upper.position.y = -0.13; ag.add(upper);
-    var elbow = new THREE.Group(); elbow.position.y = -0.30; elbow.rotation.x = -0.50; elbow.rotation.z = -side * 0.12; ag.add(elbow);
+    var elbow = new THREE.Group(); elbow.position.y = -0.27; elbow.rotation.x = -0.50; elbow.rotation.z = -side * 0.12; ag.add(elbow);
     var elbowBall = new THREE.Mesh(new THREE.SphereGeometry(0.024, 12, 10), wSkin);
     elbowBall.scale.set(1, 0.6, 0.75);
     elbow.add(elbowBall);
@@ -411,20 +449,21 @@ var woman = new THREE.Group();
     var fore = new THREE.Mesh(new THREE.LatheGeometry(forePts, 20), wSkin);
     elbow.add(fore);
     var wrist = new THREE.Mesh(new THREE.CapsuleGeometry(0.042, 0.02, 4, 12), wSkin);
-    wrist.position.y = -0.315; elbow.add(wrist);
-    var hand = makeHand(wSkin, side); hand.position.y = -0.33; hand.rotation.x = -0.15; elbow.add(hand);
+    wrist.position.y = -0.28; elbow.add(wrist);
+    var hand = makeHand(wSkin, side); hand.position.y = -0.29; hand.rotation.x = -0.15; hand.scale.set(1.05, 1.05, 1.05); elbow.add(hand);
   });
   woman.add(armL); woman.add(armR);
   var wTraps = new THREE.Mesh(new THREE.SphereGeometry(0.13, 16, 12), wSkin);
   wTraps.scale.set(1.9, 0.45, 0.85); wTraps.position.y = 1.47; woman.add(wTraps);
   legL.rotation.x = -0.04; legR.rotation.x = 0.02;
   legR.children[1].rotation.x = 0.07;
-  // Round 30 (Gito 18:26 WIB): Luna's arms hang relaxed at her sides —
-  // no arm across the chest, no hands clasped at the waist. The R29
-  // cross (left arm rotation.z +0.85, elbow folded -1.35) is reverted:
-  // both arms keep their construction pose (rotation.z -/+0.20, elbow
-  // bend -0.50), hands at hip/thigh height, like the right arm already was.
-  armL.rotation.x = -0.03; armL.rotation.y = 0; armL.rotation.z = -0.20;
+  // Round 31 (Gito 18:51 WIB, brief asli — koreksi "jangan menyilang"
+  // 18:55 WIB dibatalkan Gito sebagai salah ketik): saat Luna diam,
+  // lengan KIRI menyilang di depan dada (rotation.z +0.85, siku
+  // terlipat -1.35), lengan kanan menggantung natural di sisi dengan
+  // siku sedikit menekuk. R30 (kedua lengan rileks di sisi) dikalahkan.
+  armL.rotation.x = -0.10; armL.rotation.y = 0; armL.rotation.z = 0.85;
+  armL.children[2].rotation.x = -1.35;
   armR.rotation.x = 0.03; armR.rotation.y = -0.15;
   head.rotation.z = 0.04;
   woman.userData = { armL: armL, armR: armR, legL: legL, legR: legR, head: head };
